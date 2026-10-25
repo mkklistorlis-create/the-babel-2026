@@ -12,7 +12,7 @@ export function parseRoomInvitation(value){
   return roomPattern.test(room||'')?room:null;
  }catch{return null;}
 }
-const statusNames={idle:'尚未连接',connecting:'正在连接房间服务…',waiting:'房间已创建，等待另一位加入',joining:'正在连接对方画面…',connected:'双人画面已连接',disconnected:'对方已断开，可以重新加入',error:'连接未成功'};
+const statusNames={idle:'Not connected',connecting:'Connecting to the room…',waiting:'Room ready · waiting for your partner',joining:'Connecting to your partner…',connected:'Connected · two participants',disconnected:'Partner disconnected · you can reconnect',error:'Connection failed'};
 
 /** Room controls are opt-in; constructing this object never opens media or a network connection. */
 export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnectionState=()=>{},onSession=()=>{},onMeaning=()=>{}}){
@@ -23,8 +23,8 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
   layoutRole=role||null;
   if(role)document.body.dataset.roomRole=role;else delete document.body.dataset.roomRole;
   $('remote-pane').hidden=!role;$('participant-local').hidden=!role;
-  $('participant-local').textContent=role?`${role} · 你${getMode()==='demo'?' · 模拟画面':''}`:'';
-  $('participant-remote').textContent=role?`${role==='A'?'B':'A'} · 对方`:'';
+  $('participant-local').textContent=role?`${role} · You${getMode()==='demo'?' · Simulated':''}`:'';
+  $('participant-remote').textContent=role?`${role==='A'?'B':'A'} · Partner`:'';
  }
  function clearRemote(){
   remoteReady=false;remoteData=null;
@@ -38,14 +38,15 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
  }
  function render(){
   const active=Boolean(state.roomId)&&!['idle','error','disconnected'].includes(state.status);
-  const text=state.error||statusNames[state.status]||state.status;
-  $('room-status').textContent=text;
+  const text=state.error?(/[\u3400-\u9fff]/.test(state.error)?'Connection interrupted. Try again or check Connection help.':state.error):(statusNames[state.status]||state.status);
+  $('room-status').textContent=text;$('room-panel').dataset.status=state.status;
   $('room-badge').textContent=layoutRole?`${layoutRole} · ${text}`:'';
   $('room-badge').hidden=!layoutRole;
   $('room-create').disabled=busy||active;
   $('room-join').disabled=busy||active;
   $('room-input').disabled=busy||active;
   $('room-source').disabled=busy||getMode()!=='idle';
+  $('room-source-row').hidden=getMode()!=='idle';
   $('room-leave').hidden=!(busy||layoutRole||active);
   $('room-retry').hidden=busy||!lastAction||!['error','disconnected'].includes(state.status);
   $('room-invite-section').hidden=!state.roomId||state.role!=='A';
@@ -54,12 +55,12 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
    const url=new URL(location.href);url.hash=new URLSearchParams({room:state.roomId}).toString();
    $('room-invite').value=url.href;
   }
-  $('remote-placeholder').textContent=state.status==='waiting'?'等待另一位加入':state.status==='connected'&&!remoteReady?'等待对方画面…':text;
-  const remote=remoteData?.mode==='demo'?' · 模拟画面':'';
-  if(layoutRole)$('participant-remote').textContent=`${layoutRole==='A'?'B':'A'} · 对方${remote}`;
+  $('remote-placeholder').textContent=state.status==='waiting'?'Waiting for your partner':state.status==='connected'&&!remoteReady?'Waiting for partner video…':text;
+  const remote=remoteData?.mode==='demo'?' · Simulated':'';
+  if(layoutRole)$('participant-remote').textContent=`${layoutRole==='A'?'B':'A'} · Partner${remote}`;
   $('room-network-note').textContent=config?.turnConfigured
-   ?'已配置网络中转；连接状态可在测试面板查看。'
-   :'当前测试使用直连；部分校园或公司网络可能需要 TURN 中转。连接失败时可换个人热点再试。';
+   ?'Network relay is available. If connection fails, try reconnecting.'
+   :'This connection uses a direct network route. Some campus or company networks may block it; try a personal hotspot if needed.';
   onConnectionState({...state,remoteLanguage:remoteData?.language});
  }
  function updateMetrics(){
@@ -69,7 +70,7 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
  function open(){
   $('room-panel').hidden=false;
   $('room-source-row').hidden=getMode()!=='idle';
-  render();$('room-input').focus();
+  render();$('room-close').focus();
  }
  function leave(){
   attempt++;busy=false;
@@ -80,23 +81,23 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
  }
  async function loadConfig(){
   const response=await fetch('/api/rtc-config',{cache:'no-store'});
-  if(!response.ok)throw new Error('联机配置加载失败，请刷新后重试');
+  if(!response.ok)throw new Error('Could not load connection settings. Refresh and try again.');
   const result=await response.json();
-  if(!Array.isArray(result.iceServers))throw new Error('联机配置无效');
+  if(!Array.isArray(result.iceServers))throw new Error('Connection settings are invalid.');
   return result;
  }
  async function begin(action){
   if(busy)return;
   const roomId=action==='join'?parseRoomInvitation($('room-input').value):null;
-  if(action==='join'&&!roomId){state={...state,status:'error',error:'请粘贴完整邀请链接或房间 ID'};render();return;}
+  if(action==='join'&&!roomId){state={...state,status:'error',error:'Paste a complete invite link or room ID.'};render();return;}
   leave();const token=++attempt;busy=true;lastAction=action;
   state={status:'connecting',role:action==='host'?'A':'B',roomId};render();
   try{
-   if(typeof globalThis.Peer!=='function')throw new Error('联机组件未加载，请刷新网页');
+   if(typeof globalThis.Peer!=='function')throw new Error('Connection component did not load. Refresh this page.');
    config=await loadConfig();if(token!==attempt)return;
    const ready=await prepareSource(getMode()==='idle'?$('room-source').value:getMode());
    if(token!==attempt)return;
-   if(!ready)throw new Error('摄像头尚未准备好。可以返回检查授权，或选择模拟画面测试连接');
+   if(!ready)throw new Error('Your camera is not ready. Close this panel, check camera permissions, and try again.');
    setLayout(state.role);
    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
    if(token!==attempt)return;
@@ -132,20 +133,24 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
   }catch(error){
    if(token!==attempt)return;
    const failed=state;
-   leave();state={...failed,status:'error',error:error.message||'无法建立连接'};busy=false;render();open();
+   leave();state={...failed,status:'error',error:error.message||'Could not connect. Please try again.'};busy=false;render();open();
   }
  }
  $('room-open-intro').onclick=open;$('room-badge').onclick=open;
- $('room-close').onclick=()=>$('room-panel').hidden=true;
+ function closePanel(){$('room-panel').hidden=true;const target=getMode()==='idle'?$('room-open-intro'):$('exit');target?.focus();}
+ $('room-close').onclick=closePanel;
+ $('room-help').onclick=()=>{const note=$('room-network-note');note.hidden=!note.hidden;$('room-help').setAttribute('aria-expanded',String(!note.hidden));};
+ const panelKey=event=>{if($('room-panel').hidden)return;if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();closePanel();}else if(event.key==='Tab'){const nodes=[...$('room-panel').querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled])')].filter(node=>!node.closest('[hidden]'));const first=nodes[0],last=nodes[nodes.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}};
+ document.addEventListener('keydown',panelKey,true);
  $('room-create').onclick=()=>begin('host');$('room-join').onclick=()=>begin('join');
  $('room-leave').onclick=leave;$('room-retry').onclick=()=>begin(lastAction);
  $('room-copy').onclick=async()=>{
-  try{await navigator.clipboard.writeText($('room-invite').value);$('room-copy').textContent='已复制';setTimeout(()=>$('room-copy').textContent='复制邀请链接',1800);}
-  catch{$('room-invite').focus();$('room-invite').select();$('room-status').textContent='请复制选中的邀请链接';}
+  try{await navigator.clipboard.writeText($('room-invite').value);$('room-copy').textContent='Copied';setTimeout(()=>$('room-copy').textContent='Copy link ↗',1800);}
+  catch{$('room-invite').focus();$('room-invite').select();$('room-status').textContent='Copy the selected invite link.';}
  };
  $('remote-video').onplaying=()=>{if(!$('remote-video').srcObject)return;remoteReady=true;$('remote-placeholder').hidden=true;$('remote-resume').hidden=true;updateMetrics();};
  $('remote-video').onwaiting=()=>{if(!remoteReady)$('remote-placeholder').hidden=false;};
- $('remote-resume').onclick=()=>$('remote-video').play().catch(()=>{$('room-status').textContent='对方画面暂时无法播放，请重新加入';open();});
+ $('remote-resume').onclick=()=>$('remote-video').play().catch(()=>{$('room-status').textContent='Partner video could not play. Please rejoin.';open();});
  $('room-input').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();void begin('join');}};
  function readInvitation(){
   if(busy||!['idle','error','disconnected'].includes(state.status))return;
@@ -155,8 +160,8 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
  window.addEventListener('hashchange',readInvitation);readInvitation();
  metricTimer=setInterval(updateMetrics,1000);
  render();updateMetrics();
- return {leave,open,sendSession:message=>connection?.sendSession(message)||false,sendMeaning:message=>connection?.sendMeaning(message)||false,closePanel(){$('room-panel').hidden=true;},get panelOpen(){return !$('room-panel').hidden;},
-  destroy(){leave();clearInterval(metricTimer);window.removeEventListener('hashchange',readInvitation);},
+ return {leave,open,sendSession:message=>connection?.sendSession(message)||false,sendMeaning:message=>connection?.sendMeaning(message)||false,closePanel,get panelOpen(){return !$('room-panel').hidden;},
+  destroy(){leave();document.removeEventListener('keydown',panelKey,true);clearInterval(metricTimer);window.removeEventListener('hashchange',readInvitation);},
   get diagnostics(){return {...(connection?.diagnostics||state),capture:capture?.diagnostics||null,remoteReady,remoteState:remoteData,layoutRole};}
  };
 }

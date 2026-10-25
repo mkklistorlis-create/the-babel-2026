@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EXPRESSION_LIBRARY} from '../public/expressions.js';
-import {sessionChartData,createArtworkLayout,sessionExportData,sessionCSV,formatSessionDuration,formatSessionPercent,recordedExpressionCount,sessionRecordingPresentation,sessionTimelineData,timelineSegments,sessionTimelineSVG,sessionTimelineCSV,participantSummaries} from '../public/session-results.js';
+import {sessionOverviewHTML,sessionChartData,createArtworkLayout,sessionExportData,sessionCSV,formatSessionDuration,formatSessionPercent,recordedExpressionCount,sessionRecordingPresentation,sessionTimelineData,timelineSegments,sessionTimelineSVG,sessionTimelineCSV,participantSummaries} from '../public/session-results.js';
 
 const id='abcdef0123456789abcdef0123456789';
 function summary(role,values,options={}){
@@ -198,4 +198,14 @@ test('timeline export preserves gaps, sampled zeros, resolution and solo source 
  assert.doesNotMatch(sessionCSV(s),/facial_activity_index/,'existing expression CSV schema is preserved');
  data.participants.A.timeline.points[0][1]=99;
  assert.equal(s.local.timeline.points[0][1],0,'export does not mutate live timeline');
+});
+
+test('compact overview keeps A/B attribution for guest and missing partner states',()=>{
+ const a=summary('A',{smile:[8000,3]});const b=summary('B',{neutral:[2000,1]});
+ const duet={kind:'duet',role:'B',local:b,remote:a};
+ const html=sessionOverviewHTML(duet);assert.match(html,/A · Partner/);assert.match(html,/B · You/);
+ assert.ok(html.indexOf('80.0%')<html.indexOf('50.0%'),'A and B coverage stays separate and role-ordered');
+ const partial=sessionOverviewHTML({...duet,remote:null});assert.match(partial,/Not received/);assert.match(partial,/—/);
+ const solo=sessionOverviewHTML({kind:'solo',role:'A',local:a,remote:b});
+ assert.doesNotMatch(solo,/data-role="B"|50.0%/);assert.match(solo,/80.0%/);
 });
