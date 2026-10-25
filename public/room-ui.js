@@ -135,7 +135,7 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
    leave();state={...failed,status:'error',error:error.message||'无法建立连接'};busy=false;render();open();
   }
  }
- $('room-open-intro').onclick=open;$('room-open').onclick=open;$('room-badge').onclick=open;
+ $('room-open-intro').onclick=open;$('room-badge').onclick=open;
  $('room-close').onclick=()=>$('room-panel').hidden=true;
  $('room-create').onclick=()=>begin('host');$('room-join').onclick=()=>begin('join');
  $('room-leave').onclick=leave;$('room-retry').onclick=()=>begin(lastAction);

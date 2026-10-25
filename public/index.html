@@ -7,6 +7,7 @@
  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Noto+Sans+JP:wght@700&family=Noto+Sans+SC:wght@700&display=swap" rel="stylesheet">
  <link rel="stylesheet" href="/speech/kinetic-captions.css">
  <link rel="stylesheet" href="/intro.css">
+ <link rel="stylesheet" href="/live-controls.css">
 </head>
 <body>
  <canvas id="stage" aria-label="粒子马赛克人物、双手划线与头部 emoji 贴饰" tabindex="0"></canvas>
@@ -59,12 +60,12 @@
   <div id="demo-settings"><label>演示表情 <select id="demo-expression"></select></label></div>
   <p class="note">Emoji 跟随可见的面部动作。试试睁大眼、眯眼、单眼闭合，以及保持头部朝前时侧看或向上看；也可微笑、张嘴或嘟嘴。<br>眼部动作保持约半秒，普通眨眼会被过滤。双手轨迹在离开画面后逐渐淡出。</p>
   <p class="note">双手在镜头里，上下位置交换一次即可开启 6 / 7；停手后继续跟随。双手都移出画面约一秒，或同时握拳，即可结束。</p>
-  <p class="note">D 测试面板 · 空格暂停粒子 · Esc 退出<br>多人出现时暂停个人追踪，确认单人后自动继续。<br>每台电脑仅追踪当前的一位参与者。</p>
+  <p class="note">D 测试面板 · Esc 退出<br>多人出现时暂停个人追踪，确认单人后自动继续。<br>每台电脑仅追踪当前的一位参与者。</p>
  </aside>
  <div id="ui-dock">
   <p id="status" role="status" hidden></p>
   <div id="caption-deck" aria-label="实时字幕区"><section id="speech-captions" class="live-captions" hidden aria-label="我的实时字幕"><strong id="speech-local-label">我说的话</strong><p id="speech-source" class="caption-text" aria-live="polite" aria-atomic="true"></p><div hidden><p id="speech-meaning"></p><p id="speech-meta"></p></div><p id="speech-caption-state" class="caption-meta"></p></section><section id="speech-remote" class="live-captions remote-captions" hidden aria-label="对方的实时翻译"><strong>对方说的话</strong><p id="speech-remote-meaning" class="caption-text" aria-live="polite" aria-atomic="true"></p><p id="speech-remote-source" class="caption-original"></p><p id="speech-remote-meta" class="caption-meta"></p></section></div>
-  <div id="control-deck"><div id="transport" hidden><button id="speech-start">开启麦克风</button><button id="speech-stop" hidden>关闭麦克风</button><button id="exit" title="Esc 返回并关闭摄像头">退出</button><button id="pause">暂停粒子</button><button id="room-open">双人联机</button><button id="debug-toggle">调试 D</button></div></div>
+  <div id="control-deck" role="group" aria-label="Live controls"><div id="transport" hidden><button id="speech-start" aria-label="Unmute microphone"><svg viewBox="0 0 24 28" aria-hidden="true"><rect x="8" y="2" width="8" height="15" rx="4"/><path d="M4 12v2a8 8 0 0 0 16 0v-2M12 22v4M8 26h8"/><path class="mic-slash" d="M2 2l20 24"/></svg><span>Unmute</span></button><button id="speech-stop" hidden aria-label="Mute microphone"><svg viewBox="0 0 24 28" aria-hidden="true"><rect x="8" y="2" width="8" height="15" rx="4"/><path d="M4 12v2a8 8 0 0 0 16 0v-2M12 22v4M8 26h8"/></svg><span>Mute</span></button><button id="exit" title="Return to the homepage and close the camera and microphone">Exit</button></div></div>
  </div>
  <script src="/vendor/peerjs.min.js"></script><script type="module" src="/app.js"></script><script type="module" src="/ui-layout.js"></script><script type="module" src="/speech/kinetic-captions.js"></script><script type="module" src="/intro.js"></script>
 </body>

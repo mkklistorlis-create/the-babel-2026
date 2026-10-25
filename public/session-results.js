@@ -314,8 +314,10 @@ function participantLegend(state,line=false){
 
 export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
  const dock=document.createElement('section');dock.id='session-controls';dock.hidden=true;
- dock.setAttribute('aria-label','本轮交流统计');
- dock.innerHTML='<div><strong id="session-live-label">尚未开始</strong><span id="session-live-clock"></span></div><p id="session-live-status" role="status"></p><div class="session-control-actions"><button id="session-start">开始本轮统计</button><button id="session-finish" hidden>结束并生成 ↗</button><button id="session-open" hidden>查看统计</button></div>';
+ dock.setAttribute('aria-label','Recording status');
+ dock.innerHTML='<div class="session-recording"><span class="recording-dot" aria-hidden="true"></span><strong id="session-live-label">WAIT</strong><span id="session-live-clock">00:00</span></div>';
+ const actions=document.createElement('div');actions.className='session-control-actions';actions.hidden=true;
+ actions.innerHTML='<button id="session-finish">Finish &amp; create ↗</button>';
  const panel=document.createElement('section');panel.id='session-results';panel.hidden=true;
  panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-labelledby','session-results-title');
  panel.innerHTML=`<div class="session-sheet"><header class="session-header"><div><p class="eyebrow">THE BABEL / SESSION PORTRAIT · R08</p><h2 id="session-results-title">这一次，我们留下了什么。</h2></div><button id="session-close" aria-label="关闭统计，返回联机">×</button></header>
@@ -327,7 +329,7 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
   <section class="session-art-section"><div class="session-section-heading"><div><p class="eyebrow">03 / A CONVERSATION PORTRAIT</p><h3>本轮的几何肖像</h3></div><button id="session-download-png">保存纯艺术 PNG ↗</button></div><p id="session-art-description" class="session-note"></p><div class="session-art-wrap"><canvas id="session-art" width="1600" height="1000" aria-label="本轮表情统计生成的纯色几何背景与 emoji 拼贴"></canvas><p id="session-art-empty" hidden>有了有效表情记录，作品就会在这里生成。</p></div></section>
   <footer class="session-footer"><p class="session-note">记录可见的面部动作。缺失时间单独统计；模拟画面会明确标记。<br>统计和导出在浏览器内完成，刷新页面后本轮记录会清除。</p><div><button id="session-download-csv">导出 CSV</button><button id="session-download-json">导出 JSON</button><button id="session-new-round">开始新一轮</button><button id="session-return">返回画面（未记录）</button></div></footer><p id="session-export-status" role="status"></p></div>`;
  const controlDeck=document.getElementById('control-deck');
- if(controlDeck)controlDeck.prepend(dock);else document.body.append(dock);
+ if(controlDeck){controlDeck.prepend(dock);controlDeck.append(actions);}else{document.body.append(dock);document.body.append(actions);}
  document.body.append(panel);
  const $=id=>document.getElementById(id);
  let state={phase:'idle',role:null,local:null,remote:null},metric='count',previousFocus=null,lastSignature='',lastDraw=0,drawTimer=null,shownSession=null,destroyed=false;
@@ -386,18 +388,15 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
   if(['starting','recording'].includes(state.phase)&&(previousSession!==state.sessionId||previousPhase==='complete'))close();
   dock.hidden=!(state.sourceActive||state.connected||state.canStart||state.role||hasData()||active);
   const presentation=sessionRecordingPresentation(state);
-  $('session-live-label').textContent=presentation.label;
-  $('session-live-clock').textContent=presentation.elapsed;
-  $('session-live-status').textContent=presentation.status;
+  dock.dataset.phase=state.phase;actions.hidden=dock.hidden;
+  $('session-live-label').textContent=state.phase==='recording'?'REC':['complete','finishing'].includes(state.phase)?'STOP':'WAIT';
+  $('session-live-clock').textContent=(presentation.elapsed||'0:00').padStart(5,'0');
   $('session-return').textContent=presentation.returnLabel;
   $('session-close').setAttribute('aria-label',`关闭统计，${presentation.returnLabel}`);
   $('session-new-round').hidden=active;$('session-new-round').disabled=!state.canStart;
   $('session-new-round').title=state.canStart?'开始新的本轮记录':solo(state)?'开启画面后可开始新一轮':'由房主 A 发起新一轮';
-  $('session-start').hidden=active;$('session-start').disabled=!state.canStart;
-  $('session-start').textContent=state.phase==='complete'?'开始新一轮':'开始本轮统计';
-  $('session-finish').hidden=!active;$('session-finish').disabled=!state.canFinish;
-  $('session-finish').textContent=state.phase==='finishing'?(solo(state)?'正在生成…':'正在同步…'):state.phase==='starting'?'正在开始…':'结束并生成 ↗';
-  $('session-open').hidden=!hasData();
+  $('session-finish').disabled=!(state.canFinish||state.phase==='complete'&&hasData());
+  $('session-finish').textContent=state.phase==='finishing'?'Creating…':state.phase==='starting'?'Starting…':'Finish & create ↗';
   if(state.phase==='complete'&&(previousPhase!=='complete'||shownSession!==state.sessionId)){shownSession=state.sessionId;open();}
   else renderResults();
  }
@@ -412,11 +411,11 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
   }
  };
  document.addEventListener('keydown',escape,true);
- // Avoid the application's Space/D shortcuts while reading or operating results.
+ // Keep the application's D shortcut out of the results dialog.
  panel.addEventListener('keydown',event=>event.stopPropagation());
- $('session-start').onclick=()=>{close();onStart();};$('session-finish').onclick=()=>onFinish();
+ $('session-finish').onclick=()=>{if(state.phase==='complete'&&hasData())open();else if(state.canFinish)onFinish();};
  $('session-new-round').onclick=()=>{if(!state.canStart)return;close();onStart();};
- $('session-open').onclick=open;$('session-close').onclick=close;$('session-return').onclick=close;
+ $('session-close').onclick=close;$('session-return').onclick=close;
  $('session-metric').onchange=e=>{metric=e.target.value==='count'?'count':'duration';renderResults(true);};
  $('session-download-json').onclick=()=>saveBlob(new Blob([JSON.stringify(sessionExportData(state,metric),null,2)],{type:'application/json'}),name('json'));
  $('session-download-csv').onclick=()=>saveBlob(new Blob([sessionCSV(state,metric)],{type:'text/csv;charset=utf-8'}),name('csv'));
@@ -427,5 +426,5 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
   try{$('session-art').toBlob(blob=>{if(blob){saveBlob(blob,filename);$('session-export-status').textContent='PNG 已生成，包含纯艺术画面。';}else $('session-export-status').textContent='导出暂未成功，请重试。';},'image/png');}
   catch{$('session-export-status').textContent='浏览器暂时无法导出 PNG，请重试。';}
  };
- return {update,open,close,get panelOpen(){return !panel.hidden;},destroy(){destroyed=true;clearTimeout(drawTimer);document.removeEventListener('keydown',escape,true);dock.remove();panel.remove();}};
+ return {update,open,close,get panelOpen(){return !panel.hidden;},destroy(){destroyed=true;clearTimeout(drawTimer);document.removeEventListener('keydown',escape,true);dock.remove();actions.remove();panel.remove();}};
 }

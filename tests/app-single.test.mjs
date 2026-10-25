@@ -10,7 +10,7 @@ function appHarness({startError,recordSessions=false}={}){
  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
  const nodes=new Map([...html.matchAll(/id="([^"]+)"/g)].map(([,id])=>[id,{id,hidden: ['debug','transport'].includes(id),checked:false,value:'',textContent:'',attributes:{},setAttribute(name,value){this.attributes[name]=value;},focus(){},add(){}}]));
  let trackerCallbacks,renderer,raf,roomOptions,sessionOptions,sessionController,sessionState={phase:'idle'},now=100,stops=0,starts=0,networkCalls=0,sessionIds=0,speechStarts=0;
- const lifecycle=[];
+ const lifecycle=[],keyHandlers=[];
  class Canvas{constructor(){renderer=this;this.state={};this.fps=60;this.rendererType='CPU fixture';}setState(s){Object.assign(this.state,s);}setPointer(){}destroy(){}}
  const person={id:'local',faceSeen:true,stale:false,faceBBox:{x:.4,y:.2,width:.2,height:.25},facialActions:{smile:0},hands:[{id:'left'},{id:'right'}]};
  const globals={console,EXPRESSION_LIBRARY,createExpressionTracker,expressionForDemo,DuetCanvas:Canvas,mountRoomUI:options=>{roomOptions=options;return {leave(){lifecycle.push('room-leave');},closePanel(){},destroy(){lifecycle.push('room-destroy');},panelOpen:false,diagnostics:{status:'idle'}};},
@@ -18,14 +18,14 @@ function appHarness({startError,recordSessions=false}={}){
   mountSessionResults:()=>({update(){},close(){},destroy(){},panelOpen:false}),
   mountSpeechUI:()=>({start(){speechStarts++;},stop(){},destroy(){},setConnection(){},receiveMeaning(){},diagnostics:{active:false}}),
   getDemoPeople:()=>[person],createTracker:callbacks=>{trackerCallbacks=callbacks;return {async start(){starts++;if(startError)throw new Error(startError);},stop(){stops++;lifecycle.push('tracker-stop');}};},
-  document:{getElementById:id=>nodes.get(id)||null,body:{classList:{add(){},remove(){}}}},window:{addEventListener(){}},Option:class{},innerWidth:1280,innerHeight:720,
+  document:{getElementById:id=>nodes.get(id)||null,body:{classList:{add(){},remove(){}}}},window:{addEventListener(type,handler){if(type==='keydown')keyHandlers.push(handler);}},Option:class{},innerWidth:1280,innerHeight:720,
   performance:{now:()=>now},Date,setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},requestAnimationFrame:callback=>{raf=callback;return 1;},cancelAnimationFrame(){},
   fetch(){networkCalls++;throw new Error('R07 must not request speech/semantic services');},
  };
  const context=vm.createContext(globals);
  vm.runInContext(readFileSync(new URL('../public/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),context);
  return {nodes,renderer,context,lifecycle,get roomOptions(){return roomOptions;},get sessionOptions(){return sessionOptions;},get sessionController(){return sessionController;},get stops(){return stops;},get starts(){return starts;},get networkCalls(){return networkCalls;},get speechStarts(){return speechStarts;},
-  start:()=>nodes.get('start').onclick(),frame(time){now=time;raf(time);},setTime(time){now=time;},status:event=>trackerCallbacks.onStatus(event),
+  key:(key,code='')=>keyHandlers.forEach(fn=>fn({key,code,target:{tagName:'BODY'},preventDefault(){}})),start:()=>nodes.get('start').onclick(),frame(time){now=time;raf(time);},setTime(time){now=time;},status:event=>trackerCallbacks.onStatus(event),
   observation(occupancy,options={}){trackerCallbacks.onFrame({people:occupancy==='single'?[{...person,faceObservedAt:now}]:[],count:occupancy==='single'?1:0,occupancy,countGuardHealthy:true,ownershipEpoch:1,observedPeopleCount:occupancy==='multiple'?2:occupancy==='single'?1:0,faceCount:occupancy==='multiple'?2:1,poseCount:1,latencyMs:40,...options});},
  };
 }
@@ -82,7 +82,7 @@ test('demo is explicitly simulated, has two hands and cycles through expression 
  assert.equal(h.renderer.state.mode,'demo');assert.equal(h.renderer.state.count,1);assert.equal(h.renderer.state.people[0].hands.length,2);
  const before=h.renderer.state.expression.id;h.nodes.get('stage').onpointerdown({clientX:300,clientY:200});h.frame(300);
  assert.notEqual(h.renderer.state.expression.id,before);assert.equal(h.renderer.state.expression.visible,true);assert.equal(h.starts,0);
- h.nodes.get('pause').onclick();h.frame(400);assert.equal(h.renderer.state.paused,true);
+ h.key(' ','Space');h.frame(400);assert.equal(h.renderer.state.paused,false);
 });
 
 test('camera startup failure is visible and never falls back to fake live data',async()=>{
@@ -110,13 +110,13 @@ test('room source preparation cannot broadcast a failed camera or silently choos
  assert.equal(h.context.window.betweenUs.diagnostics.mode,'live');
 });
 
-test('session statistics receives stable expression state and pauses for hidden or paused views',async()=>{
+test('session statistics receives stable expression state and pauses for hidden views',async()=>{
  const h=appHarness();await h.start();h.observation('single');h.frame(200);
  assert.equal(h.sessionOptions.getSnapshot().present,true);
  assert.equal(h.sessionOptions.getSnapshot().expression.id,'neutral');
  assert.equal(h.sessionOptions.getSnapshot().paused,false);
- h.nodes.get('pause').onclick();assert.equal(h.sessionOptions.getSnapshot().paused,true);
- h.nodes.get('pause').onclick();h.context.document.hidden=true;
+ h.key(' ','Space');assert.equal(h.sessionOptions.getSnapshot().paused,false);
+ h.context.document.hidden=true;
  assert.equal(h.sessionOptions.getSnapshot().paused,true);
  h.context.document.hidden=false;h.frame(1300);
  assert.equal(h.sessionOptions.getSnapshot().present,false);
@@ -158,4 +158,13 @@ test('camera output is recorded immediately and loss of tracking closes a short 
  h.setTime(700);h.sessionController.tick();
  assert.equal(h.sessionController.state.local.counts.find(x=>x.id==='smile').durationMs,20);
  assert.equal(h.sessionController.state.local.missingMs,160);
+});
+
+test('live controls remove old actions while D still toggles diagnostics',async()=>{
+ const h=appHarness();await h.start();
+ for(const id of ['pause','debug-toggle','room-open'])assert.equal(h.nodes.has(id),false);
+ assert.equal(h.nodes.get('debug').hidden,true);
+ h.key('d');assert.equal(h.nodes.get('debug').hidden,false);
+ h.key('D');assert.equal(h.nodes.get('debug').hidden,true);
+ h.key(' ','Space');h.frame(200);assert.equal(h.renderer.state.paused,false);
 });
