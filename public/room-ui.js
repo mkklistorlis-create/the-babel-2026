@@ -40,7 +40,7 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
   const active=Boolean(state.roomId)&&!['idle','error','disconnected'].includes(state.status);
   const text=state.error?(/[\u3400-\u9fff]/.test(state.error)?'Connection interrupted. Try again or check Connection help.':state.error):(statusNames[state.status]||state.status);
   $('room-status').textContent=text;$('room-panel').dataset.status=state.status;
-  $('room-badge').textContent=layoutRole?`${layoutRole} · ${text}`:'';
+  $('room-badge').textContent=layoutRole?'Connection ↗':'';
   $('room-badge').hidden=!layoutRole;
   $('room-create').disabled=busy||active;
   $('room-join').disabled=busy||active;
@@ -103,7 +103,7 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
    if(token!==attempt)return;
    capture=createArtworkCapture(canvas,{onError:message=>{
     if(token!==attempt)return;
-    leave();state={status:'error',role:null,roomId:null,error:message};render();open();
+    leave();state={status:'error',role:null,roomId:null,error:message};render();
    }});
    const client=new RoomConnection({config:{iceServers:config.iceServers},
     onState:next=>{
@@ -133,7 +133,7 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
   }catch(error){
    if(token!==attempt)return;
    const failed=state;
-   leave();state={...failed,status:'error',error:error.message||'Could not connect. Please try again.'};busy=false;render();open();
+   leave();state={...failed,status:'error',error:error.message||'Could not connect. Please try again.'};busy=false;render();
   }
  }
  $('room-open-intro').onclick=open;$('room-badge').onclick=open;
@@ -150,7 +150,7 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
  };
  $('remote-video').onplaying=()=>{if(!$('remote-video').srcObject)return;remoteReady=true;$('remote-placeholder').hidden=true;$('remote-resume').hidden=true;updateMetrics();};
  $('remote-video').onwaiting=()=>{if(!remoteReady)$('remote-placeholder').hidden=false;};
- $('remote-resume').onclick=()=>$('remote-video').play().catch(()=>{$('room-status').textContent='Partner video could not play. Please rejoin.';open();});
+ $('remote-resume').onclick=()=>$('remote-video').play().catch(()=>{$('room-status').textContent='Partner video could not play. Please rejoin.';});
  $('room-input').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();void begin('join');}};
  function readInvitation(){
   if(busy||!['idle','error','disconnected'].includes(state.status))return;

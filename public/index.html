@@ -16,7 +16,7 @@
  <video id="camera" muted playsinline autoplay hidden></video>
  <section id="remote-pane" hidden aria-label="对方的艺术画面">
   <video id="remote-video" muted playsinline autoplay hidden></video>
-  <p id="remote-placeholder">等待另一位加入</p><button id="remote-resume" hidden>播放对方画面</button>
+  <button id="remote-resume" hidden>Play partner video</button>
   <span id="participant-remote"></span>
  </section>
  <span id="participant-local" hidden></span>
@@ -35,13 +35,12 @@
     </div>
     <label hidden for="speech-language">Your language<select id="speech-language"><option value="zh">Chinese</option><option value="en">English</option><option value="ja">Japanese</option><option value="es">Spanish</option></select></label>
     <div class="intro-actions"><button id="start" class="primary">Start creating ↗</button><button id="room-open-intro">Connect with someone ↗</button></div>
-    <p id="boot-error" role="alert"></p>
    </div>
   </div>
   <p id="consent" class="intro-consent">One person per device. Starting requests camera and microphone access.<br>Video is processed on your device. Audio goes to Deepgram; text goes to the semantic service.<br>Connecting shares your processed video (including your background), interaction data and captions with your partner.</p>
  </section>
- <span id="mode-tag" hidden>动态演示 · 模拟画面</span>
- <button id="room-badge" hidden aria-label="打开联机状态"></button>
+
+ <button id="room-badge" hidden aria-label="Connection settings"></button>
  <section id="room-panel" hidden role="dialog" aria-modal="true" aria-labelledby="room-title" lang="en">
   <div class="room-sheet">
    <div class="room-heading"><svg class="babel-brand compact-brand" viewBox="0 0 760 230" role="img" aria-label="The Babel">
@@ -64,6 +63,7 @@
  </section>
  <aside id="debug" hidden aria-label="视觉交互测试面板">
   <div class="panel-heading"><strong>视觉交互测试 / 07</strong><button id="debug-close" aria-label="关闭测试面板">×</button></div>
+  <div class="diagnostic-notices"><p id="boot-error" role="alert"></p><span id="mode-tag" hidden>动态演示 · 模拟画面</span><p id="status" role="status" hidden></p><p id="speech-caption-state" class="caption-meta"></p><p id="speech-remote-meta" class="caption-meta"></p><p id="remote-placeholder">等待另一位加入</p></div>
   <p id="metrics">等待启动</p><p id="tracker-status"></p><p id="hand-status"></p><p id="gesture-status" class="note"></p><p id="room-metrics" class="note"></p>
   <div class="expression-trace"><p id="expression-output">等待清晰面部</p><p id="face-actions" class="note"></p></div>
   <p class="note">表情库</p><p id="emoji-library"></p>
@@ -73,8 +73,7 @@
   <p class="note">D 测试面板 · Esc 退出<br>多人出现时暂停个人追踪，确认单人后自动继续。<br>每台电脑仅追踪当前的一位参与者。</p>
  </aside>
  <div id="ui-dock">
-  <p id="status" role="status" hidden></p>
-  <div id="caption-deck" aria-label="实时字幕区"><section id="speech-captions" class="live-captions" hidden aria-label="我的实时字幕"><strong id="speech-local-label">我说的话</strong><p id="speech-source" class="caption-text" aria-live="polite" aria-atomic="true"></p><div hidden><p id="speech-meaning"></p><p id="speech-meta"></p></div><p id="speech-caption-state" class="caption-meta"></p></section><section id="speech-remote" class="live-captions remote-captions" hidden aria-label="对方的实时翻译"><strong>对方说的话</strong><p id="speech-remote-meaning" class="caption-text" aria-live="polite" aria-atomic="true"></p><p id="speech-remote-source" class="caption-original"></p><p id="speech-remote-meta" class="caption-meta"></p></section></div>
+  <div id="caption-deck" aria-label="实时字幕区"><section id="speech-captions" class="live-captions" hidden aria-label="我的实时字幕"><strong id="speech-local-label">我说的话</strong><p id="speech-source" class="caption-text" aria-live="polite" aria-atomic="true"></p><div hidden><p id="speech-meaning"></p><p id="speech-meta"></p></div></section><section id="speech-remote" class="live-captions remote-captions" hidden aria-label="对方的实时翻译"><strong>对方说的话</strong><p id="speech-remote-meaning" class="caption-text" aria-live="polite" aria-atomic="true"></p><p id="speech-remote-source" class="caption-original"></p></section></div>
   <div id="control-deck" role="group" aria-label="Live controls"><div id="transport" hidden><button id="speech-start" aria-label="Unmute microphone"><svg viewBox="0 0 24 28" aria-hidden="true"><rect x="8" y="2" width="8" height="15" rx="4"/><path d="M4 12v2a8 8 0 0 0 16 0v-2M12 22v4M8 26h8"/><path class="mic-slash" d="M2 2l20 24"/></svg><span>Unmute</span></button><button id="speech-stop" hidden aria-label="Mute microphone"><svg viewBox="0 0 24 28" aria-hidden="true"><rect x="8" y="2" width="8" height="15" rx="4"/><path d="M4 12v2a8 8 0 0 0 16 0v-2M12 22v4M8 26h8"/></svg><span>Mute</span></button><button id="exit" title="Return to the homepage and close the camera and microphone">Exit</button></div></div>
  </div>
  <script src="/vendor/peerjs.min.js"></script><script type="module" src="/app.js"></script><script type="module" src="/ui-layout.js"></script><script type="module" src="/speech/kinetic-captions.js"></script><script type="module" src="/intro.js"></script>
