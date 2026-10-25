@@ -37,12 +37,15 @@ export class SixSevenOverlay{
   this.clear();
  }
  update(hands,projection,now,{enabled=true,owner=null,dt=0,reducedMotion=false}={}){
-  const result=this.tracker.update(hands,now,{enabled:enabled&&Boolean(projection),owner});
+  // A missing camera mask/projection is a rendering gap, not tracking loss.
+  // Continue measured gesture state and its normal expiry/ownership checks.
+  const result=this.tracker.update(hands,now,{enabled,owner});
   const entering=result.latched&&!this.latched;
   if(entering)this.startedAt=now;
-  this.active=result.active;this.latched=result.latched;this.stats={...result.diagnostics,active:result.active,latched:result.latched,hands:result.hands.map(h=>({id:h.id,digit:h.digit}))};
+  this.active=result.active&&Boolean(projection);this.latched=result.latched;this.stats={...result.diagnostics,active:this.active,latched:result.latched,hands:result.hands.map(h=>({id:h.id,digit:h.digit}))};
   for(const mesh of this.meshes.values())mesh.visible=false;
   if(!result.active){if(!result.latched)this.anchors.clear();return;}
+  if(!projection){this.anchors.clear();return;}
   const follow=1-Math.exp(-Math.max(0,dt)*22);
   for(const hand of result.hands){
    const mesh=this.meshes.get(hand.digit);if(!mesh)continue;

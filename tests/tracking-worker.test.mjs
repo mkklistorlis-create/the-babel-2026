@@ -3,10 +3,31 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {MaskStabilizer} from '../public/mask-stability.js';
+import {HandTrackFilter} from '../public/tracking-math.js';
+import {SixSevenGestureTracker} from '../public/six-seven-gesture.js';
 const source=readFileSync(new URL('../public/tracking-worker.js',import.meta.url),'utf8');
 const context=vm.createContext({URL,self:{location:{href:'http://127.0.0.1/tracking-worker.js'}},performance});
 vm.runInContext(source+'\nglobalThis.testFns={traceMask,copyConfidenceMask,unionPoseMasks};',context);
 const {traceMask,copyConfidenceMask,unionPoseMasks}=context.testFns;
+
+test('worker preserves offscreen finger geometry through filtering and six/seven activation',async()=>{
+ let y=.1;
+ const h=workerHarness({pose:poseModel(),face:faceModel(),foreground:foregroundModel(),hands:{detectForVideo(){
+  return {landmarks:[.75,.25].map((x,n)=>Array.from({length:21},(_,i)=>({x,y:(n?.32-y:y)-([4,8,12,16,20].includes(i)?.3:0),z:-i*.001}))),
+   handedness:[[{categoryName:'Left',score:.9}],[{categoryName:'Right',score:.9}]]};
+ }}});
+ const filter=new HandTrackFilter(),gesture=new SixSevenGestureTracker();
+ await h.frame(1000);let raw=h.messages.at(-1).message.people[0].hands;
+ assert.ok(raw[0].tip.y<0,'offscreen tip must retain its measured position');
+ assert.equal(raw[0].landmarks[8].y,-.19999999999999998);
+ gesture.update(filter.update(raw,1000),1000);
+ y=.22;await h.frame(1300);raw=h.messages.at(-1).message.people[0].hands;
+ assert.equal(gesture.update(filter.update(raw,1300),1300).latched,true);
+ y=-.1;await h.frame(1600);raw=h.messages.at(-1).message.people[0].hands;
+ assert.equal(raw.length,1,'offscreen palm is absent, never fabricated at the edge');
+ const partial=gesture.update(filter.update(raw,1600),1600);
+ assert.equal(partial.latched,true);assert.equal(partial.hands.length,1);
+});
 function mask(width,height,fill){const values=new Float32Array(width*height);for(let y=0;y<height;y++)for(let x=0;x<width;x++)values[y*width+x]=fill(x,y)?1:0;return {width,height,getAsFloat32Array:()=>values};}
 test('contour uses the person seed rather than always selecting the largest body',()=>{
  const m=mask(100,100,(x,y)=>(x>5&&x<30&&y>10&&y<80)||(x>55&&x<95&&y>5&&y<90));

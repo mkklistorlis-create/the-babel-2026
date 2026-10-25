@@ -159,8 +159,13 @@ function getHands(result,timestamp){
  return (result.landmarks||[]).slice(0,2).flatMap((points,index)=>{
   if(points.length!==21||points.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y)||!Number.isFinite(p.z)))return [];
   const category=result.handedness?.[index]?.[0]||result.handednesses?.[index]?.[0];
-  const landmarks=points.map(p=>({x:clamp(p.x),y:clamp(p.y),z:p.z}));
+  // Preserve finite model geometry: clipping fingers to the image boundary
+  // distorts the bone angles used by the fist cue. Ink handles its own bounds.
+  const landmarks=points.map(p=>({x:p.x,y:p.y,z:p.z}));
   const palm={x:0,y:0,z:0};for(const i of [0,5,9,13,17])for(const key of ['x','y','z'])palm[key]+=landmarks[i][key]/5;
+  // A hand whose palm leaves is missing; it must not invalidate the other hand
+  // or appear as an artificial palm pinned to the edge of the camera.
+  if(palm.x<0||palm.x>1||palm.y<0||palm.y>1)return [];
   return [{handedness:['Left','Right'].includes(category?.categoryName)?category.categoryName:'Unknown',score:clamp(category?.score||0),landmarks,palm,tip:{...landmarks[8]},wrist:{...landmarks[0]},timestamp}];
  });
 }
