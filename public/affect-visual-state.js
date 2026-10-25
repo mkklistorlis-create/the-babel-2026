@@ -95,6 +95,17 @@ function targetStrengths(expression,actions){
   sadness:a.mouthFrown,
  };
 }
+
+/** Unfiltered artistic family/strength for duration-weighted session artwork.
+ * This reuses the live ring mapping; score is deliberately not confidence.
+ * Demo presets must be explicitly marked by the caller. */
+export function observedAffectSignal(expression){
+ if(!expression?.visible||!Object.hasOwn(EXPRESSION_ART_FAMILIES,expression.id))return null;
+ const actions=readActions(expression.actions);
+ if(!actions&&expression.demo!==true)return null;
+ const family=EXPRESSION_ART_FAMILIES[expression.id];
+ return {family,intensity:targetStrengths(expression,actions)[family],demo:expression.demo===true};
+}
 const zeros=()=>Object.fromEntries(AFFECT_FAMILIES.map(key=>[key,0]));
 const oneHot=family=>Object.fromEntries(AFFECT_FAMILIES.map(key=>[key,Number(key===family)]));
 const smoothstep=value=>{const t=clamp(value);return t*t*(3-2*t);};

@@ -1,5 +1,7 @@
 import {EXPRESSION_LIBRARY} from './expressions.js';
 import {createFacialActivityTracker,FACIAL_ACTIVITY_METRIC} from './expression-activity.js';
+import {observedAffectSignal} from './affect-visual-state.js';
+import {createSessionArtAccumulator,normalizeSessionArt} from './session-art-stats.js';
 
 // Statistics describe observed emoji configurations, never inferred feelings.
 export const MAX_SESSION_MS=24*60*60*1000;
@@ -95,6 +97,11 @@ export function normalizeSessionSummary(input){
   if(!timeline)return null;
   output.timeline=timeline;
  }
+ if(input.art!==undefined){
+  const art=normalizeSessionArt(input.art,durationMs,validMs);
+  if(!art)return null;
+  output.art=art;
+ }
  return output;
 }
 
@@ -111,8 +118,9 @@ export function createExpressionRecorder({sessionId,role,mode,now=()=>performanc
  if(!Number.isFinite(startedAt)||startedAt<0)throw new TypeError('Invalid recorder start time');
  const counts=ids.map(id=>({id,durationMs:0,episodes:0}));
  const entries=new Map(counts.map(item=>[item.id,item]));
- const activity=createFacialActivityTracker({mode,maxGapMs}),timeline=createActivityTimeline();
+ const activity=createFacialActivityTracker({mode,maxGapMs}),timeline=createActivityTimeline(),art=createSessionArtAccumulator();
  let activityValue=null;
+ let artSignal=null;
  let lastAt=startedAt,expiresAt=startedAt,current=null,revision=0,validMs=0,finished=false;
  function advance(at){
   if(finished||!Number.isFinite(at)||at<lastAt)return false;
@@ -123,9 +131,11 @@ export function createExpressionRecorder({sessionId,role,mode,now=()=>performanc
    const evidenceEnd=Math.max(lastAt,Math.min(end,expiresAt));
    timeline.interval(lastAt-startedAt,evidenceEnd-startedAt,activityValue);
    timeline.interval(evidenceEnd-startedAt,end-startedAt,null);
+   art.interval(lastAt-startedAt,evidenceEnd-startedAt,artSignal);
+   art.interval(evidenceEnd-startedAt,end-startedAt,null);
    lastAt=end;
    // At the exact expiry a contiguous new observation can continue the episode.
-   if(end>expiresAt){current=null;activityValue=null;activity.update({valid:false},end);}
+   if(end>expiresAt){current=null;activityValue=null;artSignal=null;activity.update({valid:false},end);}
    revision++;
   }
   if(at>=startedAt+MAX_SESSION_MS)finished=true;
@@ -134,7 +144,7 @@ export function createExpressionRecorder({sessionId,role,mode,now=()=>performanc
  function copy(){
   const durationMs=lastAt-startedAt;
   return {sessionId,role,mode,revision,durationMs,validMs,missingMs:Math.max(0,durationMs-validMs),counts:counts.map(item=>({...item})),
-   timeline:timeline.snapshot(durationMs,activityValue)};
+   timeline:timeline.snapshot(durationMs,activityValue),art:art.snapshot()};
  }
  return {
   sample(input,at=now()){
@@ -146,6 +156,9 @@ export function createExpressionRecorder({sessionId,role,mode,now=()=>performanc
     }
     const previousActivity=activityValue;
     activityValue=activity.update({...input,valid:Boolean(next)},lastAt);
+    const nextArt=next?observedAffectSignal({id:next,visible:true,actions:input?.actions,demo:mode==='demo'}):null;
+    if(nextArt?.family!==artSignal?.family||nextArt?.intensity!==artSignal?.intensity)revision++;
+    artSignal=nextArt;
     timeline.observe(lastAt-startedAt,activityValue);
     if(previousActivity!==activityValue)revision++;
     expiresAt=lastAt+maxGapMs;

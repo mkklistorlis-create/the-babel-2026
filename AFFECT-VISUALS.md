@@ -1,4 +1,4 @@
-# Expression-ring artwork — R10.0
+# Expression-ring artwork — R11.0
 
 ## Design source and scope
 
@@ -32,6 +32,10 @@ The three regular orbits use 205×78 radii and 0°/±55° orientations. Calm and
 
 ## Runtime
 
-The renderer adds a bounded geometry layer above the photographic background and below the existing foreground mosaic. It uses triangle ribbons for reliable variable width in WebGL, vertex-color gradients, reusable buffers, and existing camera-cover projection. A modest breathing motion is purely an artistic animation and is not recorded as a physiological measurement. Reduced-motion preference and pause are respected. Missing/ambiguous tracking and participant ownership changes clear the previous participant's graphic state.
+The renderer uses three tilted orbital planes centered on the torso. With reliable existing pose landmarks, the center is the shoulder midpoint plus 28% of the vector toward the hip midpoint; shoulders alone provide a downward chest estimate. A face-only view uses a lower estimated center, explicitly reported as `face-estimate` in diagnostics. The center follows the body with smoothing and is never moved up to fit the viewport; cropping may trim the lower or outer arcs.
+
+Each orbit carries signed geometric depth. Segments crossing the body plane are split: far arcs draw above the photographic background and behind the mosaic, while near arcs draw above body particles and below fingertip trails and the emoji. Two meshes share a fixed 24,576-vertex budget. Triangle ribbons retain variable width, original palettes and existing shape families without relying on platform-specific line widths.
+
+Every family has a gentle 5.6-second light cycle and a slow traveling highlight in its existing shader. There is no extra bloom pass or recognition model. The light is decorative and never enters statistics. Reduced-motion preference and pause freeze its phase. Missing/ambiguous tracking and participant ownership changes clear both front and back arcs.
 
 Each computer renders its own participant's rings into the existing artwork canvas. The existing WebRTC stream transports that composition to the partner, so solo and duet use the same visual implementation without a second model or a new ring-data network stream. Explicit demo mode uses synthetic preset intensity; it is not evidence of camera accuracy.

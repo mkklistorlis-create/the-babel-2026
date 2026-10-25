@@ -1,4 +1,4 @@
-/** Figma 134:11, three hollow orbits behind the tracked person.
+/** Figma 134:11, three hollow, tilted orbits around the tracked chest.
  * The visual families describe an artistic mapping of facial movements, not
  * a psychological diagnosis. No extra camera, speech or inference pipeline. */
 import * as THREE from './vendor/three.module.js';
@@ -34,7 +34,11 @@ export function buildAffectPaths(family,intensity,{phase=0,reducedMotion=false}=
  const breathing=!reducedMotion&&(family==='calm'||family==='joy')?1+Math.sin(phase*.72)*.012:1;
  const rx=g.radiusX*g.scale*breathing,ry=g.radiusY*g.scale*breathing,offset=g.offsetY||0;
  for(let ring=0;ring<g.angles.length;ring++){
-  const angle=g.angles[ring]*DEG,transform=p=>{const q=rotate(p,angle);return {x:q.x,y:q.y+offset};};
+  const angle=g.angles[ring]*DEG,depthRadius=Math.sqrt(Math.abs(rx*rx-ry*ry));
+  // Lift the reference ellipse into an inclined orbital plane. Its near half
+  // is drawn in front of the torso; its far half is occluded by the torso.
+  const transform=p=>{const q=rotate(p,angle);return {x:q.x,y:q.y+offset,
+   z:(rx>=ry?p.y/ry:p.x/rx)*depthRadius,orbitX:p.x/rx,orbitY:p.y/ry};};
   if(g.kind==='chevrons'){
    const half=g.chevronLeg/Math.SQRT2,arc=ellipseArcSites(rx,ry,g.chevronCount);
    for(const site of arc.sites){
@@ -72,25 +76,64 @@ export function affectBounds(paths){
  return Number.isFinite(minX)?{minX,minY,maxX,maxY,width:maxX-minX,height:maxY-minY}:null;
 }
 
-/** The measured upper chest, with viewport-only scale and a bounded cover crop.
- * Face tracking supplies the anchor; its changing box size cannot pump rings. */
-export function affectRingPlacement(person,projection,viewport,bounds){
+const posePoint=p=>finite(p)&&Number.isFinite(p.visibility)&&p.visibility>=.55&&(!Number.isFinite(p.presence)||p.presence>=.55);
+/** Reuse the already measured torso. Missing hips do not turn the accessory
+ * back into a head halo; the shoulder axis still supplies a chest estimate. */
+export function affectChestAnchor(person,projection,now){
+ if(!person||!projection)return null;
+ const points=person.landmarks||[],left=points[11],right=points[12];
+ const observed=person.poseObservedAt??person.faceObservedAt;
+ const fresh=!Number.isFinite(now)||!Number.isFinite(observed)||(now>=observed&&now-observed<800);
+ if(fresh&&person.rawSource!=='face-landmarks'&&posePoint(left)&&posePoint(right)){
+  const a=projection.point(left.x,left.y),b=projection.point(right.x,right.y),sx=(a.x+b.x)/2,sy=(a.y+b.y)/2;
+  const dx=b.x-a.x,dy=b.y-a.y,span=Math.hypot(dx,dy);
+  if(span>=8){
+   if(posePoint(points[23])&&posePoint(points[24])){
+    const h=projection.point((points[23].x+points[24].x)/2,(points[23].y+points[24].y)/2);
+    if(h.y-sy>span*.18&&Math.hypot(h.x-sx,h.y-sy)<projection.height*1.8)
+     return {x:sx+(h.x-sx)*.28,y:sy+(h.y-sy)*.28,kind:'torso',shoulderSpan:span};
+   }
+   let nx=-dy/span,ny=dx/span;if(ny<0){nx=-nx;ny=-ny;}
+   return {x:sx+nx*span*.38,y:sy+ny*span*.38,kind:'shoulders',shoulderSpan:span};
+  }
+ }
+ if(!finite(person.faceCenter)||!person.faceBBox)return null;
+ const face=projection.point(person.faceCenter.x,person.faceCenter.y),head=projection.box(person.faceBBox);
+ return {x:face.x,y:head.y+head.height*1.75,kind:'face-estimate',shoulderSpan:null};
+}
+
+/** Preserve the anatomical centre even near a crop edge. Fitting the whole
+ * drawing by moving its centre upward produced the old behind-head halo. */
+export function affectRingPlacement(person,projection,viewport,bounds,now){
  if(!finite(person?.faceCenter)||!person.faceBBox||!projection||!bounds)return null;
  const width=viewport.width,height=viewport.height;if(!(width>0&&height>0))return null;
- const head=projection.box(person.faceBBox),face=projection.point(person.faceCenter.x,person.faceCenter.y),padding=Math.min(16,width*.03,height*.03);
+ const chest=affectChestAnchor(person,projection,now);if(!chest)return null;
+ const padding=Math.min(16,width*.03,height*.03);
  // The reference frame has generous side margins. A narrow duet pane keeps
  // the camera's vertical cover scale, then fits the actual strokes, rather
  // than shrinking those margins along with the artwork into the person's face.
  let scale=Math.min(height/AFFECT_REFERENCE.height,2.25);
  scale=Math.min(scale,(width-padding*2)/Math.max(1,bounds.width),(height-padding*2)/Math.max(1,bounds.height));
  if(!(scale>0))return null;
- const minX=padding-bounds.minX*scale,maxX=width-padding-bounds.maxX*scale,minY=padding-bounds.minY*scale,maxY=height-padding-bounds.maxY*scale;
- return {x:clamp(face.x,minX,maxX),y:clamp(head.y+head.height*1.35,minY,maxY),scale,minX,maxX,minY,maxY};
+ return {...chest,scale};
 }
 
-const vertex=`attribute vec3 aColor;attribute float aAlpha;varying vec3 vColor;varying float vAlpha;
-void main(){vColor=aColor;vAlpha=aAlpha;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
-const fragment=`varying vec3 vColor;varying float vAlpha;void main(){gl_FragColor=vec4(vColor,vAlpha);
+/** Decorative light uses time only; it never feeds expression statistics. */
+export function affectLightPhase(phase=0){
+ const t=Number.isFinite(phase)?phase:0;
+ return {breath:.86+.14*Math.sin(t*TAU/5.6),travel:t*.55};
+}
+const vertex=`attribute vec3 aColor;attribute float aAlpha;attribute vec2 aOrbit;attribute float aEdge;
+varying vec3 vColor;varying float vAlpha;varying vec2 vOrbit;varying float vEdge;
+void main(){vColor=aColor;vAlpha=aAlpha;vOrbit=aOrbit;vEdge=aEdge;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
+const fragment=`varying vec3 vColor;varying float vAlpha;varying vec2 vOrbit;varying float vEdge;
+uniform float uBreath,uTravel;
+void main(){
+ float edge=1.-smoothstep(.72,1.,abs(vEdge));
+ float wave=.5+.5*dot(normalize(vOrbit),vec2(cos(uTravel),sin(uTravel)));
+ float sheen=pow(clamp(wave,0.,1.),10.);
+ vec3 lit=mix(vColor,vec3(1.),.025+.10*sheen);
+ gl_FragColor=vec4(lit,vAlpha*uBreath*(.90+.10*sheen)*edge);
 #include <colorspace_fragment>
 }`;
 
@@ -102,17 +145,35 @@ function gradient(palette,stops,t){
 }
 
 export class AffectRings{
- constructor(parent,{order=-30,maxVertices=24576}={}){
-  this.capacity=Math.max(3,Math.floor(maxVertices/3)*3);this.positions=new Float32Array(this.capacity*3);this.colors=new Float32Array(this.capacity*3);this.alphas=new Float32Array(this.capacity);
-  this.geometry=new THREE.BufferGeometry();this.geometry.setDrawRange(0,0);
-  for(const[name,array,size]of[['position',this.positions,3],['aColor',this.colors,3],['aAlpha',this.alphas,1]])this.geometry.setAttribute(name,new THREE.BufferAttribute(array,size).setUsage(THREE.DynamicDrawUsage));
-  this.material=new THREE.ShaderMaterial({vertexShader:vertex,fragmentShader:fragment,transparent:true,side:THREE.DoubleSide,depthTest:false,depthWrite:false});
-  this.mesh=new THREE.Mesh(this.geometry,this.material);this.mesh.name='Figma · three affect rings';this.mesh.renderOrder=order;this.mesh.frustumCulled=false;this.mesh.visible=false;parent.add(this.mesh);
-  this.filter=createAffectVisualState();this.phase=0;this.lastTime=null;this.anchor=null;this.owner=undefined;this.count=0;this.stats={visible:false,vertices:0,pathCount:0};
+ constructor(parent,{order=-30,frontOrder=5,maxVertices=24576}={}){
+  this.capacity=Math.max(3,Math.floor(maxVertices/3)*3);this.positions=new Float32Array(this.capacity*3);this.colors=new Float32Array(this.capacity*3);this.alphas=new Float32Array(this.capacity);this.orbits=new Float32Array(this.capacity*2);this.edges=new Float32Array(this.capacity);
+  this.geometry=new THREE.BufferGeometry();this.frontGeometry=new THREE.BufferGeometry();this.geometry.setDrawRange(0,0);this.frontGeometry.setDrawRange(this.capacity,0);
+  // Both draw calls share one fixed vertex budget. Back segments grow from
+  // the start; front segments grow from the end. No full-buffer copies.
+  for(const[name,array,size]of[['position',this.positions,3],['aColor',this.colors,3],['aAlpha',this.alphas,1],['aOrbit',this.orbits,2],['aEdge',this.edges,1]]){
+   const attribute=new THREE.BufferAttribute(array,size).setUsage(THREE.DynamicDrawUsage);
+   this.geometry.setAttribute(name,attribute);this.frontGeometry.setAttribute(name,attribute);
+  }
+  this.material=new THREE.ShaderMaterial({uniforms:{uBreath:{value:.86},uTravel:{value:0}},vertexShader:vertex,fragmentShader:fragment,transparent:true,side:THREE.DoubleSide,depthTest:false,depthWrite:false});
+  this.mesh=new THREE.Mesh(this.geometry,this.material);this.mesh.name='Chest orbits · far side';this.mesh.renderOrder=order;this.mesh.frustumCulled=false;this.mesh.visible=false;parent.add(this.mesh);
+  this.frontMesh=new THREE.Mesh(this.frontGeometry,this.material);this.frontMesh.name='Chest orbits · near side';this.frontMesh.renderOrder=frontOrder;this.frontMesh.frustumCulled=false;this.frontMesh.visible=false;parent.add(this.frontMesh);
+  this.filter=createAffectVisualState();this.phase=0;this.lastTime=null;this.anchor=null;this.owner=undefined;this.count=0;this.backCount=0;this.frontCount=0;this.stats={visible:false,vertices:0,pathCount:0};
  }
- clear(){this.filter.reset();this.anchor=null;this.lastTime=null;this.phase=0;this.count=0;this.geometry.setDrawRange(0,0);this.mesh.visible=false;this.stats={visible:false,vertices:0,pathCount:0};}
+ _hide(){this.count=0;this.backCount=0;this.frontCount=0;this.geometry.setDrawRange(0,0);this.frontGeometry.setDrawRange(this.capacity,0);this.mesh.visible=false;this.frontMesh.visible=false;this.stats={visible:false,vertices:0,pathCount:0};}
+ clear(){this.filter.reset();this.anchor=null;this.lastTime=null;this.phase=0;this._hide();}
  reproject(){this.anchor=null;}
- _vertex(p,color,alpha,placement){const i=this.count++,j=i*3;this.positions[j]=placement.x+p.x*placement.scale;this.positions[j+1]=placement.y+p.y*placement.scale;this.positions[j+2]=0;this.colors[j]=color.r;this.colors[j+1]=color.g;this.colors[j+2]=color.b;this.alphas[i]=alpha;}
+ _vertex(i,p,edge,alpha,placement,side){
+  const j=i*3;this.positions[j]=placement.x+p.x*placement.scale;this.positions[j+1]=placement.y+p.y*placement.scale;this.positions[j+2]=edge.z*placement.scale;
+  this.colors[j]=edge.color.r;this.colors[j+1]=edge.color.g;this.colors[j+2]=edge.color.b;this.alphas[i]=alpha;
+  this.orbits[i*2]=edge.orbitX;this.orbits[i*2+1]=edge.orbitY;this.edges[i]=side;
+ }
+ _quad(a,b,alpha,placement){
+  if(this.count+6>this.capacity)return;
+  const front=a.z+b.z>=0,index=front?this.capacity-this.frontCount-6:this.backCount;
+  this._vertex(index,a.left,a,alpha,placement,-1);this._vertex(index+1,a.right,a,alpha,placement,1);this._vertex(index+2,b.left,b,alpha,placement,-1);
+  this._vertex(index+3,b.left,b,alpha,placement,-1);this._vertex(index+4,a.right,a,alpha,placement,1);this._vertex(index+5,b.right,b,alpha,placement,1);
+  this.count+=6;if(front)this.frontCount+=6;else this.backCount+=6;
+ }
  _ribbon(path,placement,weight){
   const points=path.points,n=points.length,half=path.width/2,edges=[];if(n<2)return;
   for(let i=0;i<n;i++){
@@ -121,13 +182,18 @@ export class AffectRings{
    const n1=al>.0001?{x:-ay/al,y:ax/al}:{x:-by/(bl||1),y:bx/(bl||1)},n2=bl>.0001?{x:-by/bl,y:bx/bl}:n1;
    let nx=n1.x+n2.x,ny=n1.y+n2.y,length=Math.hypot(nx,ny);if(length<.001){nx=n2.x;ny=n2.y;length=1;}nx/=length;ny/=length;
    const extension=Math.min(half*2.5,half/Math.max(.4,Math.abs(nx*n2.x+ny*n2.y))),color=gradient(path.palette,path.gradientStops,(p.x+220)/440);
-   edges.push({left:{x:p.x+nx*extension,y:p.y+ny*extension},right:{x:p.x-nx*extension,y:p.y-ny*extension},color});
+   const orbit=rotate({x:p.orbitX,y:p.orbitY},path.ring*.8);
+   edges.push({left:{x:p.x+nx*extension,y:p.y+ny*extension},right:{x:p.x-nx*extension,y:p.y-ny*extension},z:p.z,orbitX:orbit.x,orbitY:orbit.y,color});
   }
   const segments=path.closed?n:n-1,alpha=clamp(path.opacity*weight);
   for(let i=0;i<segments;i++){
    if(this.count+6>this.capacity)break;const a=edges[i],b=edges[(i+1)%n];
-   this._vertex(a.left,a.color,alpha,placement);this._vertex(a.right,a.color,alpha,placement);this._vertex(b.left,b.color,alpha,placement);
-   this._vertex(b.left,b.color,alpha,placement);this._vertex(a.right,a.color,alpha,placement);this._vertex(b.right,b.color,alpha,placement);
+   if(a.z*b.z<0){
+    const t=-a.z/(b.z-a.z),lerp=(x,y)=>x+(y-x)*t;
+    const mid={left:{x:lerp(a.left.x,b.left.x),y:lerp(a.left.y,b.left.y)},right:{x:lerp(a.right.x,b.right.x),y:lerp(a.right.y,b.right.y)},z:0,
+     orbitX:lerp(a.orbitX,b.orbitX),orbitY:lerp(a.orbitY,b.orbitY),color:{r:lerp(a.color.r,b.color.r),g:lerp(a.color.g,b.color.g),b:lerp(a.color.b,b.color.b)}};
+    this._quad(a,mid,alpha,placement);this._quad(mid,b,alpha,placement);
+   }else this._quad(a,b,alpha,placement);
   }
  }
  update(person,projection,now,{expression,enabled=true,owner=null,paused=false,reducedMotion=false,viewport={width:900,height:430}}={}){
@@ -136,26 +202,30 @@ export class AffectRings{
   if(owner!==this.owner){this.anchor=null;this.phase=0;this.lastTime=null;this.owner=owner;}
   const state=this.filter.update(expression,now,{eligible,owner,paused});this.visualState=state;
   const dt=this.lastTime===null?0:clamp((now-this.lastTime)/1000,0,.1);this.lastTime=now;
-  if(!state.visible){this.anchor=null;this.count=0;this.geometry.setDrawRange(0,0);this.mesh.visible=false;this.stats={visible:false,vertices:0,pathCount:0};return this.stats;}
+  if(!state.visible){this.anchor=null;this._hide();return this.stats;}
   if(!paused&&!reducedMotion)this.phase+=dt;
   const paths=[],weights=[];
   for(const family of AFFECT_FAMILIES){const weight=state.weights[family]||0;if(weight<.001)continue;for(const path of buildAffectPaths(family,state.strengths[family],{phase:reducedMotion?0:this.phase,reducedMotion})){paths.push(path);weights.push(weight);}}
-  const bounds=affectBounds(paths),placement=affectRingPlacement(person,projection,viewport,bounds);
-  if(!placement){this.mesh.visible=false;this.geometry.setDrawRange(0,0);this.stats={visible:false,vertices:0,pathCount:0};return this.stats;}
+  const bounds=affectBounds(paths),placement=affectRingPlacement(person,projection,viewport,bounds,now);
+  if(!placement){this._hide();return this.stats;}
   if(!this.anchor)this.anchor={...placement};else{
    const follow=1-Math.exp(-dt*10);for(const key of['x','y','scale'])this.anchor[key]+=(placement[key]-this.anchor[key])*follow;
-   // Smoothing may not leave an old, larger drawing outside the current crop.
-   this.anchor.scale=Math.min(this.anchor.scale,placement.scale);const padding=Math.min(16,viewport.width*.03,viewport.height*.03);
-   this.anchor.x=clamp(this.anchor.x,padding-bounds.minX*this.anchor.scale,viewport.width-padding-bounds.maxX*this.anchor.scale);
-   this.anchor.y=clamp(this.anchor.y,padding-bounds.minY*this.anchor.scale,viewport.height-padding-bounds.maxY*this.anchor.scale);
+   this.anchor.scale=Math.min(this.anchor.scale,placement.scale);this.anchor.kind=placement.kind;
   }
-  this.count=0;for(let i=0;i<paths.length;i++)this._ribbon(paths[i],this.anchor,weights[i]);
+  this.count=0;this.backCount=0;this.frontCount=0;for(let i=0;i<paths.length;i++)this._ribbon(paths[i],this.anchor,weights[i]);
   // Upload only live vertices; the fixed capacity remains available for a
   // five-family crossfade without transferring empty buffer tails every frame.
-  for(const name of['position','aColor','aAlpha']){const attribute=this.geometry.getAttribute(name);attribute.clearUpdateRanges();attribute.addUpdateRange(0,this.count*attribute.itemSize);attribute.needsUpdate=true;}
-  this.geometry.setDrawRange(0,this.count);this.mesh.visible=this.count>0;
-  this.stats={visible:this.mesh.visible,family:state.family,intensity:state.intensity,vertices:this.count,pathCount:paths.length,scale:this.anchor.scale,activeFamilies:AFFECT_FAMILIES.filter(key=>state.weights[key]>.001)};
+  for(const name of['position','aColor','aAlpha','aOrbit','aEdge']){
+   const attribute=this.geometry.getAttribute(name);attribute.clearUpdateRanges();
+   if(this.backCount)attribute.addUpdateRange(0,this.backCount*attribute.itemSize);
+   if(this.frontCount)attribute.addUpdateRange((this.capacity-this.frontCount)*attribute.itemSize,this.frontCount*attribute.itemSize);
+   attribute.needsUpdate=true;
+  }
+  const light=affectLightPhase(this.phase);this.material.uniforms.uBreath.value=light.breath;this.material.uniforms.uTravel.value=light.travel;
+  this.geometry.setDrawRange(0,this.backCount);this.frontGeometry.setDrawRange(this.capacity-this.frontCount,this.frontCount);this.mesh.visible=this.backCount>0;this.frontMesh.visible=this.frontCount>0;
+  this.stats={visible:this.count>0,family:state.family,intensity:state.intensity,vertices:this.count,backVertices:this.backCount,frontVertices:this.frontCount,pathCount:paths.length,scale:this.anchor.scale,
+   anchor:{x:this.anchor.x,y:this.anchor.y,kind:this.anchor.kind},breath:light.breath,activeFamilies:AFFECT_FAMILIES.filter(key=>state.weights[key]>.001)};
   return this.stats;
  }
- dispose(){this.clear();this.mesh.removeFromParent();this.geometry.dispose();this.material.dispose();}
+ dispose(){this.clear();this.mesh.removeFromParent();this.frontMesh.removeFromParent();this.geometry.dispose();this.frontGeometry.dispose();this.material.dispose();}
 }

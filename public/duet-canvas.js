@@ -85,6 +85,8 @@ function disposeMesh(mesh){mesh?.geometry?.dispose();mesh?.material?.map?.dispos
 export function getDemoPeople(time=0){
  const sway=Math.sin(time*.5)*.035,cx=.5+sway,cy=.29;
  const faceBBox={x:cx-.077,y:cy-.13,width:.154,height:.24};
+ const landmarks=Array.from({length:33},()=>({x:cx,y:.5,z:0,visibility:0}));
+ for(const[index,x,y]of[[11,cx-.14,.55],[12,cx+.14,.55],[23,cx-.12,.96],[24,cx+.12,.96]])landmarks[index]={x,y,z:0,visibility:1};
  const hands=[-1,1].map((side,i)=>{
   const x=cx+side*(.24+Math.sin(time*.85+i)*.05),y=.53+Math.sin(time*1.2+i*2)*.14;
   const tip={x,y,z:0},palm={x:x-side*.015,y:y+.035,z:0};
@@ -92,7 +94,7 @@ export function getDemoPeople(time=0){
  });
  return [{id:'demo-0',slot:0,bbox:{x:cx-.27,y:.15,width:.54,height:.83},faceBBox,
   faceCenter:{x:cx,y:cy},faceAnchor:{x:faceBBox.x+.012,y:faceBBox.y+.024},
-  faceSeen:true,stale:false,faceConfidence:1,hands,
+  faceSeen:true,stale:false,faceConfidence:1,hands,landmarks,
   headPose:{yaw:Math.sin(time*.63)*.45,pitch:Math.sin(time*.47)*.2,roll:Math.sin(time*.8)*.12},
   facialActions:{smile:.65,jawOpen:.2},color:'#12D7EA'}];
 }

@@ -1,8 +1,11 @@
 import {EXPRESSION_LIBRARY} from './expressions.js';
 import {FACIAL_ACTIVITY_METRIC,FACIAL_ACTIVITY_DESCRIPTION} from './expression-activity.js';
+import {AFFECT_FAMILIES} from './affect-visual-state.js';
+import {EXPRESSION_ART_METRIC,EXPRESSION_ART_DESCRIPTION,ART_WINDOW_MS,normalizeSessionArt} from './session-art-stats.js';
+import {createArtBackground,paintArtBackground} from './session-art-background.js';
 
 const COLORS={A:'#d5ff00',B:'#8754ff'};
-const INK='#11110f',PAPER='#f3f3eb';
+const INK='#11110f';
 const metricName=metric=>metric==='count'?'独立出现次数':'有效识别时间占比';
 const nonnegative=value=>Number.isFinite(value)?Math.max(0,value):0;
 export function formatSessionDuration(ms){const value=nonnegative(ms);return value>0&&value<100?'<0.1 秒':`${(value/1000).toFixed(1)} 秒`;}
@@ -178,12 +181,38 @@ export function createArtworkLayout(state,metric='duration'){
  return [];
 }
 
+/** Combine only measured art evidence, in participant order on both peers.
+ * Foreground episode areas keep their existing, separate A/B budgets. */
+export function sessionArtProfiles(state){
+ const participants=participantSummaries(state),contributors=[],missingRoles=[];
+ const accumulated=AFFECT_FAMILIES.map(family=>({family,durationMs:0,strengthSum:0,variationSum:0,bands:Array.from({length:3},()=>({durationMs:0,strengthSum:0,variationSum:0}))}));
+ for(const role of participantRoles(state)){
+  const summary=participants[role],art=summary?normalizeSessionArt(summary.art,summary.durationMs,summary.validMs):null;
+  if(!art||art.validMs<=0){missingRoles.push(role);continue;}
+  contributors.push(role);
+  for(const value of art.families){
+   const target=accumulated.find(item=>item.family===value.family);
+   target.durationMs+=value.durationMs;
+   target.strengthSum+=value.durationMs*value.meanStrength;
+   target.variationSum+=value.durationMs*value.variation;
+   value.bands.forEach(([ms,strength,variation],index)=>{const band=target.bands[index];band.durationMs+=ms;band.strengthSum+=ms*strength;band.variationSum+=ms*variation;});
+  }
+ }
+ const evidenceMs=accumulated.reduce((sum,item)=>sum+item.durationMs,0);
+ const profiles=accumulated.filter(item=>item.durationMs>0).map(item=>({family:item.family,share:item.durationMs/evidenceMs,
+  meanStrength:item.strengthSum/item.durationMs,variation:item.variationSum/item.durationMs,
+  bands:item.bands.map(band=>({share:band.durationMs/item.durationMs,meanStrength:band.durationMs?band.strengthSum/band.durationMs:0,variation:band.durationMs?band.variationSum/band.durationMs:0}))}));
+ return {profiles,evidenceMs,contributors,missingRoles};
+}
+
 export function drawSessionArtwork(canvas,state,metric='duration'){
  const context=canvas.getContext('2d');
  if(!context)return [];
  canvas.width=1600;canvas.height=1000;
- context.fillStyle=PAPER;context.fillRect(0,0,1600,1000);
  const circles=createArtworkLayout(state,metric);
+ const data=sessionArtProfiles(state),background=createArtBackground(data.profiles,{seed:String(state.sessionId||'session'),foreground:circles,width:1600,height:1000});
+ paintArtBackground(context,background);
+ if(canvas.dataset){canvas.dataset.artShapes=String(background.shapes.length);canvas.dataset.artEvidenceMs=String(data.evidenceMs);canvas.dataset.artSeed=String(state.sessionId||'session');}
  for(const role of ['A','B']){
   const group=circles.filter(item=>item.role===role);
   if(group.length>1){
@@ -194,7 +223,7 @@ export function drawSessionArtwork(canvas,state,metric='duration'){
   }
  }
  for(const item of circles){
-  context.fillStyle=PAPER;context.beginPath();context.arc(item.x,item.y,item.r,0,Math.PI*2);context.fill();
+  context.fillStyle=background.paper;context.beginPath();context.arc(item.x,item.y,item.r,0,Math.PI*2);context.fill();
   context.strokeStyle=COLORS[item.role];context.lineWidth=3;context.stroke();
   context.strokeStyle=INK;context.lineWidth=.75;context.beginPath();context.arc(item.x,item.y,item.r*.94,0,Math.PI*2);context.stroke();
   context.font=`${item.r*1.5}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
@@ -206,8 +235,9 @@ export function drawSessionArtwork(canvas,state,metric='duration'){
 
 function safeSummary(summary){
  if(!summary)return null;
+ const art=normalizeSessionArt(summary.art,summary.durationMs,summary.validMs);
  return {role:summary.role,mode:summary.mode,revision:summary.revision,durationMs:summary.durationMs,validMs:summary.validMs,missingMs:summary.missingMs,
-  counts:EXPRESSION_LIBRARY.map(item=>{const count=summary.counts.find(entry=>entry.id===item.id);return {id:item.id,emoji:item.emoji,label:item.label,durationMs:nonnegative(count?.durationMs),episodes:nonnegative(count?.episodes)};}),timeline:safeTimeline(summary)};
+  counts:EXPRESSION_LIBRARY.map(item=>{const count=summary.counts.find(entry=>entry.id===item.id);return {id:item.id,emoji:item.emoji,label:item.label,durationMs:nonnegative(count?.durationMs),episodes:nonnegative(count?.episodes)};}),timeline:safeTimeline(summary),...(art?{art}:{})};
 }
 
 export function sessionExportData(state,metric='duration'){
@@ -219,6 +249,7 @@ export function sessionExportData(state,metric='duration'){
  return {format:'the-babel-session-v1',sessionId:state.sessionId,kind:solo(state)?'solo':'duet',metric:metric==='count'?'episodes':'duration-share',complete:Boolean(state.complete),
   reason:state.reason||null,description:'Observed facial configurations; not an assessment of feelings. Missing time is excluded from expression shares. Timing timestamps are local monotonic milliseconds for the indicated participant, not wall-clock time; do not compare timestamps across devices.',localTiming,
   timelineDefinition:{metric:FACIAL_ACTIVITY_METRIC,description:FACIAL_ACTIVITY_DESCRIPTION,range:[0,100],missing:null,timeAxis:'Milliseconds elapsed since each participant’s own session start; not synchronized wall-clock time.',aggregation:'Intervals may be coarsened for long sessions; retain peak values and keep missing intervals null.'},
+  artDefinition:{metric:EXPRESSION_ART_METRIC,windowMs:ART_WINDOW_MS,description:EXPRESSION_ART_DESCRIPTION,design:'Figma 158:11',generator:'figma-geometric-background-v1',seed:String(state.sessionId||'session'),...sessionArtProfiles(state)},
   participants:Object.fromEntries(participantRoles(state).map(role=>[role,safeSummary(participants[role])]))};
 }
 
@@ -293,7 +324,7 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
   <div id="session-bar-legend" class="session-legend"></div><p id="session-chart-description" class="session-note"></p><div id="session-chart" tabindex="0" aria-label="可横向滚动的表情柱状图"></div>
   <details class="session-details"><summary>查看全部统计数据</summary><div id="session-table"></div></details></section>
   <section class="session-timeline-section"><div class="session-section-heading"><div><p class="eyebrow">02 / FACIAL ACTIVITY</p><h3>表情波动</h3></div><button id="session-download-timeline-csv">导出曲线 CSV</button></div><div id="session-timeline-legend" class="session-legend"></div><p id="session-timeline-description" class="session-note"></p><div id="session-timeline" tabindex="0" aria-label="表情波动折线图"></div><p id="session-timeline-empty" class="session-note" hidden></p></section>
-  <section class="session-art-section"><div class="session-section-heading"><div><p class="eyebrow">03 / AN EXPRESSION TRACE</p><h3>本轮的表情拼贴</h3></div><button id="session-download-png">保存纯艺术 PNG ↗</button></div><p id="session-art-description" class="session-note"></p><div class="session-art-wrap"><canvas id="session-art" width="1600" height="1000" aria-label="由本轮表情分布生成的 emoji 拼贴"></canvas><p id="session-art-empty" hidden>有了有效表情记录，作品就会在这里生成。</p></div></section>
+  <section class="session-art-section"><div class="session-section-heading"><div><p class="eyebrow">03 / A CONVERSATION PORTRAIT</p><h3>本轮的几何肖像</h3></div><button id="session-download-png">保存纯艺术 PNG ↗</button></div><p id="session-art-description" class="session-note"></p><div class="session-art-wrap"><canvas id="session-art" width="1600" height="1000" aria-label="本轮表情统计生成的纯色几何背景与 emoji 拼贴"></canvas><p id="session-art-empty" hidden>有了有效表情记录，作品就会在这里生成。</p></div></section>
   <footer class="session-footer"><p class="session-note">记录可见的面部动作。缺失时间单独统计；模拟画面会明确标记。<br>统计和导出在浏览器内完成，刷新页面后本轮记录会清除。</p><div><button id="session-download-csv">导出 CSV</button><button id="session-download-json">导出 JSON</button><button id="session-new-round">开始新一轮</button><button id="session-return">返回画面（未记录）</button></div></footer><p id="session-export-status" role="status"></p></div>`;
  document.body.append(dock,panel);
  const $=id=>document.getElementById(id);
@@ -331,7 +362,9 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
   $('session-timeline-empty').hidden=timeline.hasValues&&!unavailable.length;
   $('session-timeline-empty').textContent=!timeline.hasTimeline?'本轮没有曲线记录。开始新一轮后即可记录表情波动。':!timeline.hasValues?'本轮曲线尚无有效面部动作信号；缺失时间保留为空白。':unavailable.length?`${unavailable.join('、')} 的曲线尚未收到；其余已记录曲线显示如下。`:'';
   $('session-download-timeline-csv').disabled=!timeline.hasTimeline;
-  $('session-art-description').textContent=`${solo(state)?'由你的本轮记录生成。':'左侧 A · 右侧 B，两人各分配相同总面积。'}单个 emoji 的面积与${metric==='duration'?'时长占比':'各表情出现次数的占比'}成正比。PNG 仅包含艺术画面。`;
+  const artData=sessionArtProfiles(state);
+  const backgroundNote=artData.evidenceMs>0?'背景由每 2 秒的有效面部动作记录生成：占比决定面积，强度决定大小与明暗，变化决定旋转。'+(artData.missingRoles.length?'部分参与者暂无背景记录，仅使用已收到的数据。':''):'本轮暂无可用的几何背景记录；开始新一轮后即可生成。';
+  $('session-art-description').textContent=`${solo(state)?'由你的本轮记录生成。':'左侧 A · 右侧 B，两人各分配相同 emoji 总面积。'}单个 emoji 的面积与${metric==='duration'?'时长占比':'各表情出现次数的占比'}成正比。${backgroundNote} PNG 仅包含艺术画面。`;
   const circles=drawSessionArtwork($('session-art'),state,metric);
   $('session-art-empty').hidden=Boolean(circles.length);$('session-download-png').disabled=!circles.length;
   $('session-download-csv').disabled=!hasData();$('session-download-json').disabled=!hasData();

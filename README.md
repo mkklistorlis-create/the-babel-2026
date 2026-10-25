@@ -1,4 +1,10 @@
-# Between Us — R10.1 expression rings and session timelines
+# The Babel — R11.0 chest orbits and conversation portraits
+
+R11.0 anchors three tilted expression orbits to the middle of the chest using the existing shoulder/hip landmarks. Far arcs pass behind the participant, near arcs pass in front of the body, and all five families receive a small 5.6-second breathing-light cycle. No recognition thresholds or additional models are introduced.
+
+Final solo and duet artwork now follows [Figma 158:11](https://www.figma.com/design/ARPz6Z5NkTlPAz0bv1S6oj?node-id=158-11): sage capsules, yellow circles, purple starbursts, coral wedges and gray-blue rectangles. Two-second facial-action aggregates drive coverage, size, three solid color bands and rotation. Session-seeded placement preserves space around the existing frequency-sized emoji nodes. Both peers can reproduce the same artwork and export the complete composition as a UI-free PNG. See [ARTWORK-GENERATION.md](ARTWORK-GENERATION.md).
+
+Source repository: https://github.com/mkklistorlis-create/the-babel-2026. The previous graphic release is preserved on GitHub branch `release-r10.1`; R09.0 remains separately deployed at https://the-babel-stats.vercel.app/.
 
 R10.1 fits the ring layer to the available drawing bounds after sizing from view height, keeping the artwork readable beside a large camera-cover face in narrow duet panes. The independent R09.0 statistics release remains unchanged.
 
@@ -33,7 +39,7 @@ R07 follows the revised camera-only direction. One participant uses one camera. 
 Node.js 24+ and a WebGL2-capable desktop browser are required. After cloning, run the build once to download and verify the pinned vision models, Three.js and WASM assets. These assets are then served locally. The current app requires no API key or language-model server.
 
 ```sh
-cd between-us
+# Run from the project directory after cloning or extracting.
 npm run build
 npm start
 ```

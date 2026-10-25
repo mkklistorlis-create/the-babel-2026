@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Group} from '../public/vendor/three.module.js';
 import {AFFECT_FAMILIES} from '../public/affect-visual-state.js';
-import {AffectRings,buildAffectPaths,ellipseArcSites,affectBounds,affectRingPlacement} from '../public/affect-rings.js';
+import {AffectRings,buildAffectPaths,ellipseArcSites,affectBounds,affectRingPlacement,affectChestAnchor,affectLightPhase} from '../public/affect-rings.js';
 import {cameraProjection} from '../public/duet-canvas.js';
 
 const ids={calm:'neutral',joy:'smile',surprise:'open-mouth',tension:'brow-furrow',sadness:'mouth-frown'};
@@ -13,6 +13,11 @@ const projection=viewport=>cameraProjection(viewport.width,viewport.height,1280,
 const close=(actual,expected,tolerance=1e-8)=>assert.ok(Math.abs(actual-expected)<=tolerance,`${actual} differs from ${expected}`);
 const length=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const render=(rings,family,now,options={})=>rings.update(face(now),projection(reference),now,{expression:expression(family),owner:'person-a',viewport:reference,...options});
+const torso=(now=0)=>{
+ const person=face(now),landmarks=Array.from({length:33},()=>({x:0,y:0,z:0,visibility:0}));
+ for(const[i,x,y]of[[11,.35,.45],[12,.65,.45],[23,.4,.85],[24,.6,.85]])landmarks[i]={x,y,z:0,visibility:.95};
+ return {...person,landmarks,rawSource:'foreground-segmentation'};
+};
 
 test('calm, joy, surprise and sadness contain exactly three hollow orbit paths at every keyframe',()=>{
  for(const family of ['calm','joy','surprise','sadness'])for(const intensity of [0,.5,1]){
@@ -101,17 +106,18 @@ test('chevron sites follow equal ellipse arc lengths, including the closing inte
  for(let i=0;i<64;i++){close(centers[i].x,sites[i].point.x);close(centers[i].y,sites[i].point.y);}
 });
 
-test('placement uses viewport scale and stays inside portrait, small and wide cover crops',()=>{
+test('placement retains the lower chest estimate at crop edges rather than moving it up to fit',()=>{
  for(const viewport of [reference,{width:390,height:844},{width:180,height:140},{width:1280,height:240}]){
   for(const family of AFFECT_FAMILIES){
    const bounds=affectBounds(buildAffectPaths(family,1,{reducedMotion:true}));
    for(const [x,y] of [[0,0],[.5,.3],[1,1]]){
     const placement=affectRingPlacement(face(0,x,y),projection(viewport),viewport,bounds);
     assert.ok(placement&&placement.scale>0);
-    assert.ok(placement.x+bounds.minX*placement.scale>=-.0001);
-    assert.ok(placement.x+bounds.maxX*placement.scale<=viewport.width+.0001);
-    assert.ok(placement.y+bounds.minY*placement.scale>=-.0001);
-    assert.ok(placement.y+bounds.maxY*placement.scale<=viewport.height+.0001);
+    const p=projection(viewport),head=p.box(face(0,x,y).faceBBox),center=p.point(x,y);
+    close(placement.x,center.x);close(placement.y,head.y+head.height*1.75);
+    assert.equal(placement.kind,'face-estimate');
+    assert.ok(bounds.width*placement.scale<=viewport.width);
+    assert.ok(bounds.height*placement.scale<=viewport.height);
    }
    const person=face(0),largerFace={...person,faceBBox:{x:.25,y:.1,width:.5,height:.5}};
    close(affectRingPlacement(person,projection(viewport),viewport,bounds).scale,affectRingPlacement(largerFace,projection(viewport),viewport,bounds).scale);
@@ -120,6 +126,34 @@ test('placement uses viewport scale and stays inside portrait, small and wide co
  assert.equal(affectBounds([]),null);
  assert.equal(affectRingPlacement(null,projection(reference),reference,{width:10,height:10}),null);
  assert.equal(affectRingPlacement(face(0),projection(reference),{width:0,height:430},affectBounds(buildAffectPaths('calm',1))),null);
+});
+
+test('measured chest follows shoulders and torso independently of head position',()=>{
+ const p=cameraProjection(1000,1000,1000,1000),person=torso(100),center=affectChestAnchor(person,p,100);
+ close(center.x,500);close(center.y,562);assert.equal(center.kind,'torso');
+ const turning={...person,faceCenter:{x:.18,y:.12},faceBBox:{x:.11,y:.03,width:.14,height:.18}};
+ assert.deepEqual(affectChestAnchor(turning,p,100),center);
+ // Shoulder-only input locates the chest below the shoulder line even when
+ // sitting at a desk with the hip landmarks outside the camera.
+ person.landmarks[23].visibility=person.landmarks[24].visibility=.1;
+ const partial=affectChestAnchor(person,p,100);
+ assert.equal(partial.kind,'shoulders');close(partial.x,500);close(partial.y,564);
+ // A low-quality or expired pose cannot pin the artwork to a stale torso.
+ person.landmarks[11].visibility=.2;
+ assert.equal(affectChestAnchor(person,p,100).kind,'face-estimate');
+ assert.equal(affectChestAnchor(torso(0),p,801).kind,'face-estimate');
+ assert.equal(affectChestAnchor({...torso(100),rawSource:'face-landmarks'},p,100).kind,'face-estimate');
+});
+
+test('three tilted orbital planes contain near and far depths with continuous crossings',()=>{
+ for(const family of AFFECT_FAMILIES){
+  const paths=buildAffectPaths(family,.5,{reducedMotion:true});
+  for(let ring=0;ring<3;ring++){
+   const points=paths.filter(path=>path.ring===ring).flatMap(path=>path.points);
+   assert.ok(points.some(p=>p.z>20)&&points.some(p=>p.z< -20));
+   assert.ok(points.every(p=>Number.isFinite(p.z)&&Number.isFinite(p.orbitX)&&Number.isFinite(p.orbitY)));
+  }
+ }
 });
 
 test('splitting a 1440 px stage into two 720 px panes retains ring presence at the unchanged camera height',()=>{
@@ -135,10 +169,11 @@ test('splitting a 1440 px stage into two 720 px panes retains ring presence at t
  }
 });
 
-test('Three mesh draws only bounded finite stroke buffers behind the existing layers',()=>{
+test('two orbital draw ranges straddle the body with one finite bounded buffer',()=>{
  const parent=new Group(),rings=new AffectRings(parent);
- assert.equal(parent.children.length,1);
+ assert.equal(parent.children.length,2);
  assert.equal(rings.mesh.renderOrder,-30);
+ assert.equal(rings.frontMesh.renderOrder,5);
  assert.equal(rings.material.depthTest,false);assert.equal(rings.material.depthWrite,false);
  assert.equal(rings.material.transparent,true);
  let now=0;
@@ -148,16 +183,19 @@ test('Three mesh draws only bounded finite stroke buffers behind the existing la
    const stats=rings.update(face(now,x,y),projection(viewport),now,{expression:expression(family),viewport,owner:'person-a'});
    assert.equal(stats.visible,true);
    assert.ok(stats.vertices>0&&stats.vertices<=rings.capacity&&stats.vertices%6===0);
-   assert.equal(rings.geometry.drawRange.count,stats.vertices);
-   for(const name of['position','aColor','aAlpha']){const attribute=rings.geometry.getAttribute(name);assert.deepEqual(attribute.updateRanges,[{start:0,count:stats.vertices*attribute.itemSize}],'only the active vertex prefix is uploaded');}
-   for(let i=0;i<stats.vertices;i++){
-    const [px,py,pz]=rings.positions.subarray(i*3,i*3+3);
-    assert.ok(Number.isFinite(px)&&px>=-.001&&px<=viewport.width+.001,`${family}: x=${px}`);
-    assert.ok(Number.isFinite(py)&&py>=-.001&&py<=viewport.height+.001,`${family}: y=${py}`);
-    assert.equal(pz,0);
-    assert.ok(Number.isFinite(rings.alphas[i])&&rings.alphas[i]>=0&&rings.alphas[i]<=1);
+   assert.equal(rings.geometry.drawRange.count+ rings.frontGeometry.drawRange.count,stats.vertices);
+   assert.ok(stats.backVertices>0&&stats.frontVertices>0);
+   for(const name of['position','aColor','aAlpha','aOrbit','aEdge']){
+    const attribute=rings.geometry.getAttribute(name);assert.equal(attribute,rings.frontGeometry.getAttribute(name));
+    assert.deepEqual(attribute.updateRanges,[{start:0,count:stats.backVertices*attribute.itemSize},{start:(rings.capacity-stats.frontVertices)*attribute.itemSize,count:stats.frontVertices*attribute.itemSize}]);
    }
-   assert.ok(rings.colors.subarray(0,stats.vertices*3).every(v=>Number.isFinite(v)&&v>=0&&v<=1));
+   for(const[start,count,front]of[[0,stats.backVertices,false],[rings.capacity-stats.frontVertices,stats.frontVertices,true]])for(let i=start;i<start+count;i++){
+    const [px,py,pz]=rings.positions.subarray(i*3,i*3+3);
+    assert.ok(Number.isFinite(px)&&Number.isFinite(py)&&Number.isFinite(pz));
+    assert.ok(front?pz>=-.001:pz<=.001,'each visible half belongs to its depth side');
+    assert.ok(Number.isFinite(rings.alphas[i])&&rings.alphas[i]>=0&&rings.alphas[i]<=1);
+    assert.ok(rings.colors.subarray(i*3,i*3+3).every(v=>Number.isFinite(v)&&v>=0&&v<=1));
+   }
   }
  }
  rings.dispose();assert.equal(parent.children.length,0);
@@ -187,12 +225,38 @@ test('a small vertex budget stops at complete stroke triangles without buffer gr
   const stats=render(rings,family,i*100);
   assert.equal(rings.capacity,63);
   assert.equal(stats.vertices,60);
-  assert.equal(rings.geometry.drawRange.count,60);
+  assert.equal(rings.geometry.drawRange.count+rings.frontGeometry.drawRange.count,60);
   assert.equal(rings.positions,original);
   assert.equal(rings.positions.length,63*3);
   assert.ok(rings.positions.every(Number.isFinite));
  }
  rings.dispose();
+});
+
+test('chest anchor moves smoothly with the torso and never follows an isolated head turn',()=>{
+ const viewport={width:1000,height:1000},p=cameraProjection(1000,1000,1000,1000),rings=new AffectRings(new Group());
+ const options={expression:expression('calm'),owner:'a',viewport};
+ rings.update(torso(0),p,0,options);const initial={...rings.stats.anchor};
+ const turned={...torso(100),faceCenter:{x:.2,y:.15},faceBBox:{x:.12,y:.03,width:.16,height:.24}};
+ rings.update(turned,p,100,options);close(rings.stats.anchor.x,initial.x);close(rings.stats.anchor.y,initial.y);
+ const moved=torso(200);for(const i of[11,12,23,24])moved.landmarks[i].x+=.1;
+ rings.update(moved,p,200,options);
+ assert.ok(rings.stats.anchor.x<initial.x&&rings.stats.anchor.x>initial.x-100);
+ close(rings.stats.anchor.y,initial.y);rings.dispose();
+});
+
+test('every family breathes gently at a stable expression; pause and reduced motion freeze its light',()=>{
+ for(let phase=0;phase<100;phase+=.17){const light=affectLightPhase(phase);assert.ok(light.breath>=.72-1e-9&&light.breath<=1);}
+ close(affectLightPhase(0).breath,affectLightPhase(5.6).breath);
+ for(const family of AFFECT_FAMILIES){
+  const rings=new AffectRings(new Group());render(rings,family,0);const start=rings.stats.breath;
+  for(let i=1;i<=14;i++)render(rings,family,i*100);
+  assert.ok(rings.stats.breath>start+.1,`${family} light changes even with the same emoji`);
+  const phase=rings.phase,light=rings.stats.breath,travel=rings.material.uniforms.uTravel.value;
+  render(rings,family,1500,{paused:true});render(rings,family,1600,{reducedMotion:true});
+  close(rings.phase,phase);close(rings.stats.breath,light);close(rings.material.uniforms.uTravel.value,travel);
+  assert.equal(rings.stats.family,family);rings.dispose();
+ }
 });
 
 test('pause and reduced motion freeze phase; normal rendering resumes without a large time jump',()=>{
@@ -226,6 +290,7 @@ test('stale, missing, disabled and multiple-person eligibility immediately clear
   const stats=rings.update(person,projection(reference),200,options);
   assert.equal(stats.visible,false,interruption);assert.equal(stats.vertices,0);
   assert.equal(rings.mesh.visible,false);assert.equal(rings.geometry.drawRange.count,0);
+  assert.equal(rings.frontMesh.visible,false);assert.equal(rings.frontGeometry.drawRange.count,0);
   assert.equal(rings.anchor,null);
   const recovered=render(rings,'calm',300);
   assert.equal(recovered.visible,true);assert.deepEqual(recovered.activeFamilies,['calm']);
@@ -252,6 +317,7 @@ test('clear is idempotent, hides all draw data and permits a fresh independent s
  rings.clear();rings.clear();
  assert.equal(rings.count,0);assert.equal(rings.geometry.drawRange.count,0);
  assert.equal(rings.mesh.visible,false);assert.equal(rings.anchor,null);
+ assert.equal(rings.frontMesh.visible,false);assert.equal(rings.frontGeometry.drawRange.count,0);
  assert.equal(rings.lastTime,null);assert.equal(rings.phase,0);
  const stats=render(rings,'surprise',200);
  assert.equal(stats.visible,true);assert.deepEqual(stats.activeFamilies,['surprise']);
