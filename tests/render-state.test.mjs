@@ -231,3 +231,38 @@ test('six/seven remains inside the viewport when fingertips rise above the camer
   }
  }finally{cleanup();}
 });
+
+test('a missing render projection hides numerals without clearing measured crossing evidence or latch',()=>{
+ const {r,cleanup}=harness();try{
+  r.setState({matchedFrame:frame(),foregroundMask:mask(),gestureEnabled:true,gestureOwner:'same-person'});
+  const observe=(y,t,complete=true)=>{
+   const hands=[{id:'a',palm:{x:.75,y},tip:{x:.75,y:y-.2},timestamp:t},
+    {id:'b',palm:{x:.25,y:1-y},tip:{x:.25,y:.8-y},timestamp:t}];
+   r.setState({people:[{...getDemoPeople()[0],hands}],foregroundMask:{...mask(),complete}});r.draw(t,.25);
+  };
+  observe(.42,100);observe(.58,350,false);
+  assert.equal(r.sixSeven.stats.latched,true,'measured exchange survives missing mask');
+  assert.equal(r.sixSeven.stats.active,false,'no projection means no visible accessory');
+  assert.ok([...r.sixSeven.meshes.values()].every(m=>!m.visible));
+  observe(.58,600);assert.equal(r.sixSeven.stats.active,true);
+  observe(.58,850,false);observe(.58,1100);
+  assert.equal(r.sixSeven.stats.active,true,'restoring projection needs no second gesture');
+  r.setState({foregroundMask:{...mask(),complete:false},gestureEnabled:false});r.draw(1200,.1);
+  assert.equal(r.sixSeven.stats.latched,false,'explicit disable still revokes without projection');
+ }finally{cleanup();}
+});
+
+test('missing projection still expires stale observations and sustained missing hands',()=>{
+ const {r,cleanup}=harness();try{
+  const p=cameraProjection(1440,900,640,360);
+  const hands=(y,t)=>[{id:'a',palm:{x:.75,y},tip:{x:.75,y},timestamp:t},
+   {id:'b',palm:{x:.25,y:1-y},tip:{x:.25,y:1-y},timestamp:t}];
+  for(const reason of ['stale','missing']){
+   r.sixSeven.clear();r.sixSeven.update(hands(.42,100),p,100);r.sixSeven.update(hands(.58,350),p,350);
+   r.sixSeven.update(reason==='missing'?[]:hands(.58,350),null,600);
+   assert.equal(r.sixSeven.stats.latched,true);
+   r.sixSeven.update(reason==='missing'?[]:hands(.58,350),null,2600);
+   assert.equal(r.sixSeven.stats.latched,false);
+  }
+ }finally{cleanup();}
+});
