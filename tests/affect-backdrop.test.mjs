@@ -11,7 +11,7 @@ test('each palette creates a bounded, seeded collage of solid forms and open lin
  for(const family of AFFECT_FAMILIES){
   const commands=composeBackdrop(state(family),5,42,720,900);
   assert.deepEqual(commands,composeBackdrop(state(family),5,42,720,900));
-  assert.equal(commands.filter(c=>c.type==='fill').length,16);
+  assert.equal(commands.filter(c=>c.type==='fill'&&!c.decoration).length,16);
   assert.equal(commands.filter(c=>c.type==='strip').length,30);
   assert.equal(commands.filter(c=>c.type==='line').length,12);
   for(const c of commands){assert.ok(c.alpha>=0&&c.alpha<=1);assert.ok(c.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)));}
@@ -76,4 +76,18 @@ test('bloom origin follows projected participant slowly without single-frame jum
  assert.ok(layer.stats.origin.x>first&&layer.stats.origin.x<first+.1);
  for(let t=200;t<=2100;t+=100)layer.update({...person(t),faceCenter:{x:.7,y:.3}},projection,t,opts);
  assert.ok(layer.stats.origin.x>.68);layer.dispose();
+});
+test('all palettes have animated triangles and circles within the existing mesh budget',()=>{
+ for(const family of AFFECT_FAMILIES){
+  const first=composeBackdrop(state(family),0,42),next=composeBackdrop(state(family),1,42);
+  const particles=first.filter(c=>c.decoration),moved=next.filter(c=>c.decoration);
+  assert.equal(particles.filter(c=>c.decoration==='triangle').length,36);
+  assert.equal(particles.filter(c=>c.decoration==='circle').length,36);
+  assert.notDeepEqual(particles[0].points,moved[0].points);assert.notDeepEqual(particles[0].color,moved[0].color);
+  for(const p of particles)assert.ok(Object.values(p.color).every(v=>v>=0&&v<=1));
+ }
+ const layer=new AffectBackdrop(new Group()),opts={owner:'A',expression:expression('smile')};
+ layer.update(person(0),{},0,opts);assert.equal(layer.stats.vertices,15228);assert.equal(layer.stats.decorativeParticles,72);
+ const before=Array.from(layer.buffers.position);layer.update(person(100),{},100,{...opts,paused:true});
+ assert.deepEqual(Array.from(layer.buffers.position),before);layer.dispose();
 });

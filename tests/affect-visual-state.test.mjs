@@ -161,3 +161,25 @@ test('invalid clocks, malformed values and returned object edits cannot corrupt 
  assert.ok(Object.values(safe.strengths).every(Number.isFinite));close(safe.intensity,0);close(safe.sourceScore,0);
  t.reset();assert.equal(t.update(live(),700,{...opts,paused:true}).visible,false);
 });
+
+test('decorative expressive families hold for 1.6 seconds after returning to calm',()=>{
+ for(const [id,actions,family] of [['smile',{smile:.9},'joy'],['raised-eyes',{eyeWide:1},'surprise'],['brow-furrow',{browLower:.9},'tension']]){
+  const t=createAffectVisualState({returnToCalmHoldMs:1600});
+  t.update(live(id,actions),0,opts);const before=t.update(live(id,actions),100,opts);
+  for(const now of [200,900,1699]){const s=t.update(live(),now,opts);assert.equal(s.family,family);close(s.intensity,before.intensity);}
+  assert.equal(t.update(live(),1700,opts).family,'calm');
+  close(t.update(live(),2300,opts).weights.calm,1);
+ }
+});
+test('held backgrounds still retarget expressive cues and respect pause, ownership and lost tracking',()=>{
+ const t=createAffectVisualState({returnToCalmHoldMs:1600});t.update(live('smile',{smile:.9}),0,opts);
+ assert.equal(t.update(live('raised-eyes',{eyeWide:1}),100,opts).family,'surprise');
+ t.update(live(),200,opts);t.update(live(),300,{...opts,paused:true});
+ assert.equal(t.update(live(),2000,opts).family,'surprise');
+ assert.equal(t.update(live(),3500,opts).family,'calm');
+ t.update(live('smile',{smile:.9}),3600,opts);
+ assert.equal(t.update(live(),3700,{...opts,owner:'new'}).family,'calm');
+ t.update(live('smile',{smile:.9}),3800,opts);
+ assert.equal(t.update(live(),3900,{...opts,eligible:false}).visible,false);
+ assert.equal(t.update(live(),4000,opts).family,'calm');
+});

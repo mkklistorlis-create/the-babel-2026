@@ -65,6 +65,20 @@ export function composeBackdrop(state,phase=0,seed=1,width=1440,height=900,origi
   const angle=bundle*TAU/3-.8+line*.016+Math.sin(phase*.35+bundle)*.018,dx=Math.cos(angle),dy=Math.sin(angle),edge=edgeDistance(dx,dy);
   commands.push({type:'line',points:[{x:cx+dx*edge*.48,y:cy+dy*edge*.48},{x:cx+dx*edge*1.1,y:cy+dy*edge*1.1}],color:colorFor(state,2),alpha:1,width:1.5*small/900,pattern:0});
  }
+ // Small ink particles ride the radial forms. Stable seeds keep their identity
+ // through palette transitions; all share the existing mesh and motion clock.
+ for(let i=0;i<72;i++){
+  const key=seed+1600+i*37,angle=(i%24)/24*TAU-.16+(hash(key)-.5)*.12+Math.sin(phase*1.7+key)*.025;
+  const dx=Math.cos(angle),dy=Math.sin(angle),edge=edgeDistance(dx,dy);
+  const distance=edge*(.25+Math.floor(i/24)*.25+hash(key+1)*.16)+Math.sin(phase*2+key)*small*.009;
+  const x=cx+dx*distance,y=cy+dy*distance;
+  const radius=small*(.004+hash(key+2)*.012)*(1+Math.sin(phase*2.4+key)*.16);
+  const sides=i%2?3:16,rotation=hash(key+3)*TAU+phase*(i%3===0?-.8:.6),points=[];
+  for(let j=0;j<sides;j++){const a=rotation+j/sides*TAU;points.push({x:x+Math.cos(a)*radius,y:y+Math.sin(a)*radius});}
+  const ink=colorFor(state,i%2),brightness=.48+hash(key+4)*.4+Math.sin(phase*2.1+key)*.12;
+  const color=Object.fromEntries(['r','g','b'].map(k=>[k,clamp(ink[k]*brightness)]));
+  commands.push({type:'fill',decoration:i%2?'triangle':'circle',points,color,alpha:.9,pattern:0});
+ }
  return commands;
 }
 
@@ -130,7 +144,7 @@ export class AffectBackdrop{
   for(const [name,array] of Object.entries(this.buffers))this.geometry.setAttribute(name,new THREE.BufferAttribute(array,name==='position'||name==='aColor'?3:1).setUsage(THREE.DynamicDrawUsage));
   this.material=new THREE.ShaderMaterial({uniforms:{uViewport:{value:new THREE.Vector2(1440,900)},uOrigin:{value:new THREE.Vector2(.5,.52)},uPhase:{value:0}},vertexShader:vertex,fragmentShader:fragment,transparent:true,depthTest:false,depthWrite:false,side:THREE.DoubleSide});
   this.mesh=new THREE.Mesh(this.geometry,this.material);this.mesh.name='Expression background collage';this.mesh.renderOrder=order;this.mesh.frustumCulled=false;parent.add(this.mesh);
-  this.filter=createAffectVisualState({transitionMs:1500,intensityTimeConstantMs:420});this.clear();
+  this.filter=createAffectVisualState({transitionMs:1500,intensityTimeConstantMs:420,returnToCalmHoldMs:1600});this.clear();
  }
  clear(){this.filter.reset();this.phase=0;this.lastTime=null;this.weightMemory=null;this.origin=null;this.owner=undefined;this.seed=1;this.hide();}
  hide(){this.geometry.setDrawRange(0,0);this.mesh.visible=false;this.stats={visible:false,vertices:0,kind:'background-collage'};}
@@ -168,7 +182,7 @@ export class AffectBackdrop{
   }
   for(const attribute of Object.values(this.geometry.attributes)){attribute.clearUpdateRanges();attribute.addUpdateRange(0,this.count*attribute.itemSize);attribute.needsUpdate=true;}
   this.geometry.setDrawRange(0,this.count);this.mesh.visible=true;
-  this.stats={visible:true,kind:'background-collage',family:state.family,intensity:state.intensity,vertices:this.count,petals:24,shards:16,lineBundles:3,cameraWindows:8,layout:'radial-bloom',origin:{...this.origin},transitionMs:1500,negativeSpace:'transparent',phase:this.phase,weights:{...state.weights}};return this.stats;
+  this.stats={visible:true,kind:'background-collage',family:state.family,intensity:state.intensity,vertices:this.count,petals:24,shards:16,lineBundles:3,decorativeParticles:72,cameraWindows:8,layout:'radial-bloom',origin:{...this.origin},transitionMs:1500,returnToCalmHoldMs:1600,negativeSpace:'transparent',phase:this.phase,weights:{...state.weights}};return this.stats;
  }
  dispose(){this.clear();this.mesh.removeFromParent();this.geometry.dispose();this.material.dispose();}
 }

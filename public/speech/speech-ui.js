@@ -3,6 +3,7 @@ import {TurnView} from './ui-state.js';
 
 const languageNames={auto:'自动',zh:'中文',en:'English',ja:'日本語',es:'Español',mixed:'混合语言',und:'未确定语言'};
 const intents={statement:'陈述',question:'提问',request:'请求',evaluate:'评价',agree:'赞同',disagree:'分歧',greeting:'问候',other:'其他'};
+export const CAPTION_FINAL_HOLD_MS=1300;
 
 /** Entry starts speech; the existing toolbar only offers stop/retry. */
 export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=createSemanticPlugin(),platform=globalThis}={}){
@@ -18,12 +19,16 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
  $('language').onchange=()=>{if(active||connecting)return;$('language').value=language=supported.includes($('language').value)?$('language').value:'zh';try{platform.localStorage?.setItem('babel-language',language);}catch{}clearRemote();updateTarget();controls();};
  let config=null,active=false,connecting=false,destroyed=false,operation=0,latest=null,remote=null;
  let resetTimer=null;
+ let localCaptionTimer=null,remoteCaptionTimer=null,expiredLocalTurn=null;
  let sourceMode=null,connection={status:'idle',role:null,roomId:null};
  const listeners=[];
  const on=(name,fn)=>{plugin.addEventListener(name,fn);listeners.push([name,fn]);};
  const emit=(name,detail)=>platform.dispatchEvent?.(new CustomEvent(name,{detail}));
- const clearLocal=()=>{turns.reset();turnOrders.clear();latest=null;$('source').textContent='';$('meaning').textContent='';$('meta').textContent='';};
- const clearRemote=()=>{remoteTurns.reset();remoteOrder=-1;remote=null;$('remote-source').textContent='';$('remote-meaning').textContent='';$('remote-meta').textContent='';};
+ const cancelLocalCaption=()=>{if(localCaptionTimer!==null)platform.clearTimeout(localCaptionTimer);localCaptionTimer=null;};
+ const cancelRemoteCaption=()=>{if(remoteCaptionTimer!==null)platform.clearTimeout(remoteCaptionTimer);remoteCaptionTimer=null;};
+ const clearLocal=()=>{cancelLocalCaption();expiredLocalTurn=null;turns.reset();turnOrders.clear();latest=null;$('source').textContent='';$('meaning').textContent='';$('meta').textContent='';};
+ const clearRemoteText=()=>{$('remote-source').textContent='';$('remote-meaning').textContent='';$('remote-meta').textContent='';};
+ const clearRemote=()=>{cancelRemoteCaption();remoteTurns.reset();remoteOrder=-1;remote=null;clearRemoteText();};
  const readySource=()=>{const d=getDiagnostics?.()||{};return d.mode==='live';};
  function controls(){
   $('start').disabled=config?.enabled===false||active||connecting||!readySource();
@@ -78,12 +83,24 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
   if(!currentSource())return;
   if(!turnOrders.has(detail.utteranceId)){turnOrders.set(detail.utteranceId,++nextTurnOrder);if(turnOrders.size>128)turnOrders.delete(turnOrders.keys().next().value);}
   const state=turns.observe(detail.utteranceId);if(!state.current)return;
+  if(expiredLocalTurn===detail.utteranceId)return;
+  cancelLocalCaption();
   if(state.changed){latest=null;$('meaning').textContent='';$('meta').textContent='';}
   $('source').textContent=detail.text;controls();$('source').scrollTop=$('source').scrollHeight;
+  if(detail.final){
+   const token=operation;
+   const timer=platform.setTimeout(()=>{
+    if(localCaptionTimer!==timer)return;
+    localCaptionTimer=null;
+    if(destroyed||token!==operation||!turns.isCurrent(detail.utteranceId))return;
+    expiredLocalTurn=detail.utteranceId;$('source').textContent='';controls();
+   },CAPTION_FINAL_HOLD_MS);
+   localCaptionTimer=timer;
+  }
  });
  on('meaning:reset',({detail})=>{
   if(!currentSource()||!turns.isCurrent(detail.utteranceId))return;
-  latest=null;$('source').textContent='';$('meaning').textContent='';$('meta').textContent='';emit('between-us:meaning-reset',detail);
+  cancelLocalCaption();latest=null;$('source').textContent='';$('meaning').textContent='';$('meta').textContent='';emit('between-us:meaning-reset',detail);
  });
  for(const name of ['meaning:update','meaning:final'])on(name,({detail})=>{
   if(!currentSource())return;
@@ -110,10 +127,19 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
   if(data.turnOrder!==undefined){if(data.turnOrder<remoteOrder)return;remoteOrder=data.turnOrder;}
   if(!remoteTurns.observe(data.utteranceId).current)return;
   if(remote?.utteranceId===data.utteranceId&&(data.revision<remote.revision||(data.revision===remote.revision&&(remote.stage==='final'||data.stage!=='final'))))return;
+  cancelRemoteCaption();
   remote=data;$('remote-source').textContent=data.text;$('remote-meaning').textContent=data.translation;
   $('remote-meaning').scrollTop=$('remote-meaning').scrollHeight;$('remote-source').scrollTop=$('remote-source').scrollHeight;
   $('remote-meta').textContent=`${data.speakerId} · ${languageNames[data.language]||'未确定语言'} → ${languageNames[language]}${data.stage==='partial'?' · 暂定':' · 完整句'}`;
   emit('between-us:remote-meaning',data);
+  if(data.stage==='final'){
+   const timer=platform.setTimeout(()=>{
+    if(remoteCaptionTimer!==timer)return;
+    remoteCaptionTimer=null;
+    if(!destroyed&&remote===data)clearRemoteText();
+   },CAPTION_FINAL_HOLD_MS);
+   remoteCaptionTimer=timer;
+  }
  }
  function setConnection(next){
   if(destroyed)return;

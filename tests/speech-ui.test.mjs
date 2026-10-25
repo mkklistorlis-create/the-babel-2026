@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mountSpeechUI} from '../public/speech/speech-ui.js';
+import {mountSpeechUI,CAPTION_FINAL_HOLD_MS} from '../public/speech/speech-ui.js';
 
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 function deferred(){let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};}
 function harness(config={speechConfigured:true,semanticConfigured:true,enabled:true,accessRequired:false}){
  const nodes=new Map();
  const get=id=>{if(!nodes.has(id))nodes.set(id,{value:id==='language'?'auto':'',textContent:'',disabled:false,hidden:false,focus(){this.focused=true;}});return nodes.get(id);};
- let diagnostic={mode:'live',occupancy:'single',ownershipEpoch:1};const sent=[],events=[],timers=new Set(),timeouts=new Map();let timeoutId=0,sendWorks=true;
+ let diagnostic={mode:'live',occupancy:'single',ownershipEpoch:1};const sent=[],events=[],timers=new Set(),timeouts=new Map(),deadlines=new Map();let timeoutId=0,sendWorks=true,clock=0;
  class Plugin extends EventTarget{
   constructor(){super();this.language='auto';this.accessCode='';this.active=false;this.startCount=0;this.stopCount=0;}
   emit(type,detail){this.dispatchEvent(new CustomEvent(type,{detail}));}
@@ -16,12 +16,34 @@ function harness(config={speechConfigured:true,semanticConfigured:true,enabled:t
   stop(){if(!this.active)return;this.active=false;this.stopCount++;const pending=this.pending;this.pending=null;this.emit('status',{state:'stopped'});pending?.reject(Object.assign(new Error('Stopped'),{code:'STOPPED'}));}
   destroy(){this.stop();this.destroyed=true;}
  }
- const plugin=new Plugin();const platform={document:{getElementById:id=>get(id.replace(/^speech-/,''))},fetch:async()=>({ok:true,json:async()=>config}),setTimeout:fn=>{const id=++timeoutId;timeouts.set(id,fn);return id;},clearTimeout:id=>timeouts.delete(id),setInterval:fn=>{timers.add(fn);return fn;},clearInterval:fn=>timers.delete(fn),dispatchEvent:event=>events.push(event)};
+ const plugin=new Plugin();const platform={document:{getElementById:id=>get(id.replace(/^speech-/,''))},fetch:async()=>({ok:true,json:async()=>config}),setTimeout:(fn,delay)=>{const id=++timeoutId;timeouts.set(id,fn);deadlines.set(id,clock+delay);return id;},clearTimeout:id=>{timeouts.delete(id);deadlines.delete(id);},setInterval:fn=>{timers.add(fn);return fn;},clearInterval:fn=>timers.delete(fn),dispatchEvent:event=>events.push(event)};
  const ui=mountSpeechUI({getDiagnostics:()=>diagnostic,sendMeaning:value=>{sent.push(value);return sendWorks;},platform,plugin});
- return{get,plugin,ui,sent,events,timers,timeouts,setSendWorks(value){sendWorks=value;},flushTimeout(){const list=[...timeouts.values()];timeouts.clear();for(const fn of list)fn();},setDiagnostic(value){diagnostic={...diagnostic,...value};},tick(){for(const fn of timers)fn();},async start(){const promise=get('start').onclick();plugin.ready();await promise;}};
+ return{get,plugin,ui,sent,events,timers,timeouts,advance(ms){clock+=ms;for(const [id,fn] of [...timeouts])if(deadlines.get(id)<=clock){timeouts.delete(id);deadlines.delete(id);fn();}},setSendWorks(value){sendWorks=value;},flushTimeout(){const list=[...timeouts.values()];timeouts.clear();for(const fn of list)fn();},setDiagnostic(value){diagnostic={...diagnostic,...value};},tick(){for(const fn of timers)fn();},async start(){const promise=get('start').onclick();plugin.ready();await promise;}};
 }
 function transcript(h,id='u',text='Hello'){h.plugin.emit('transcript',{utteranceId:id,revision:1,text,language:'en'});}
 function meaning(h,id='u',stage='final',text='Hello',value='问好'){h.plugin.emit(stage==='final'?'meaning:final':'meaning:update',{type:'meaning',stage,utteranceId:id,revision:1,language:'en',targetLanguage:h.plugin.targetLanguage,translation:value,text,meaning:value,intent:'greeting',target:'',attributes:[],degree:'none',polarity:'neutral',uncertain:false,evidence:[text],latencyMs:5});}
+
+test('only finalized captions expire after 1.3 seconds; a new utterance cancels the old deadline',async()=>{
+ const h=harness();await tick();await h.start();transcript(h,'one','Still speaking');
+ h.advance(5000);assert.equal(h.get('source').textContent,'Still speaking');
+ h.plugin.emit('transcript',{utteranceId:'one',revision:2,text:'Finished.',final:true});
+ h.advance(CAPTION_FINAL_HOLD_MS-1);assert.equal(h.get('source').textContent,'Finished.');
+ h.advance(1);assert.equal(h.get('source').textContent,'');assert.equal(h.ui.diagnostics.active,true);
+ transcript(h,'one','late duplicate');assert.equal(h.get('source').textContent,'');
+ h.plugin.emit('transcript',{utteranceId:'two',revision:1,text:'Second.',final:true});
+ const stale=[...h.timeouts.values()][0];transcript(h,'three','New sentence');stale();h.advance(2000);
+ assert.equal(h.get('source').textContent,'New sentence');h.ui.destroy();assert.equal(h.timeouts.size,0);
+});
+test('remote final expiry preserves ordering and never clears a newer translation',async()=>{
+ const h=harness();await tick();h.ui.setConnection({status:'connected',roomId:'room',role:'A',remoteLanguage:'en'});
+ const value={type:'meaning',speakerId:'B',utteranceId:'one',turnOrder:1,revision:1,language:'en',targetLanguage:'zh',text:'Hello',translation:'你好',stage:'partial'};
+ h.ui.receiveMeaning(value);h.advance(4000);assert.equal(h.get('remote-meaning').textContent,'你好');
+ h.ui.receiveMeaning({...value,stage:'final'});h.advance(CAPTION_FINAL_HOLD_MS);assert.equal(h.get('remote-meaning').textContent,'');
+ h.ui.receiveMeaning({...value,stage:'final'});assert.equal(h.get('remote-meaning').textContent,'');
+ h.ui.receiveMeaning({...value,utteranceId:'two',turnOrder:2,stage:'final'});const stale=[...h.timeouts.values()][0];
+ h.ui.receiveMeaning({...value,utteranceId:'three',turnOrder:3,translation:'下一句'});stale();h.advance(2000);
+ assert.equal(h.get('remote-meaning').textContent,'下一句');h.ui.destroy();assert.equal(h.timeouts.size,0);
+});
 
 test('unconfigured speech remains disabled and never starts microphone',async()=>{
  const h=harness({speechConfigured:false,semanticConfigured:false,enabled:false});await tick();

@@ -116,13 +116,16 @@ const smoothstep=value=>{const t=clamp(value);return t*t*(3-2*t);};
  * already rejects stale face samples. No inference or sample counting occurs.
  * Weights are artistic crossfade amounts, not probabilities of feelings.
  */
-export function createAffectVisualState({transitionMs=600,intensityTimeConstantMs=180}={}){
+export function createAffectVisualState({transitionMs=600,intensityTimeConstantMs=180,returnToCalmHoldMs=0}={}){
  const transitionDuration=Number.isFinite(transitionMs)&&transitionMs>0?transitionMs:600;
  const strengthDuration=Number.isFinite(intensityTimeConstantMs)&&intensityTimeConstantMs>0?intensityTimeConstantMs:180;
+ const holdDuration=Number.isFinite(returnToCalmHoldMs)?Math.max(0,returnToCalmHoldMs):0;
+ let heldFamily=null,heldTarget=null,holdUntil=0;
  let owner,lastNow,pausedAt,visible,family,weights,strengths,fromWeights,transitionStarted,sourceId,sourceScore,demo;
  function clear(){
   lastNow=null;pausedAt=null;visible=false;family='calm';weights=zeros();strengths=zeros();fromWeights=zeros();
   transitionStarted=null;sourceId=null;sourceScore=0;demo=false;
+  heldFamily=null;heldTarget=null;holdUntil=0;
  }
  function reset(){owner=undefined;clear();}
  function output(){return {visible,family,label:AFFECT_FAMILY_LABELS[family],weights:{...weights},strengths:{...strengths},intensity:visible?strengths[family]:0,sourceId,sourceScore,demo};}
@@ -151,10 +154,18 @@ export function createAffectVisualState({transitionMs=600,intensityTimeConstantM
    let dt=lastNow===null?0:now-lastNow;
    if(pausedAt!==null){
     if(transitionStarted!==null)transitionStarted+=now-pausedAt;
+    if(heldFamily)holdUntil+=now-pausedAt;
     pausedAt=null;dt=0;
    }
    lastNow=now;
-   const nextFamily=EXPRESSION_ART_FAMILIES[expression.id],target=targetStrengths(expression,actions);
+   let nextFamily=EXPRESSION_ART_FAMILIES[expression.id],target=targetStrengths(expression,actions);
+   // Extend only the decorative return to calm. A new expressive family can
+   // still retarget immediately, and eligibility/ownership gates above win.
+   if(holdDuration>0&&['joy','surprise','tension'].includes(nextFamily)){
+    heldFamily=nextFamily;heldTarget={...target};holdUntil=now+holdDuration;
+   }else if(nextFamily==='calm'&&heldFamily&&now<holdUntil){
+    nextFamily=heldFamily;target=heldTarget;
+   }else{heldFamily=null;heldTarget=null;holdUntil=0;}
    if(!visible){
     visible=true;family=nextFamily;weights=oneHot(family);fromWeights={...weights};strengths={...target};transitionStarted=null;
    }else{
