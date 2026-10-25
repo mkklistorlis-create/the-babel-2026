@@ -1,3 +1,5 @@
+> Ring-layer design reference from R11. For the current radial backdrop and timing, see [BACKDROP-VISUALS.md](BACKDROP-VISUALS.md). Speech is now integrated separately; it does not drive these shapes.
+
 # Expression-ring artwork — R11.0
 
 ## Design source and scope

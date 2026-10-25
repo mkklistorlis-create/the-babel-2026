@@ -1,4 +1,4 @@
-# R12.2 — radial bloom with soft transitions
+# Radial bloom with soft transitions
 
 The live composition now grows from the participant toward every edge: 24 pointed torn-paper petals, 16 slender spears and three bundles of fine radial cuts. All five palettes share this topology. Calm gently curves; joy expands; surprise lengthens; tension narrows; sadness softens with a slight downward bend. Rectangular strip layouts have been removed.
 
@@ -6,11 +6,13 @@ The origin follows the projected face/chin region with a 550 ms smoothing consta
 
 The decorative family transition is now 1500 ms with a two-stage 200 ms low-pass on render weights. Intensity uses a 420 ms time constant. Retargeting midway through a transition preserves the current blended composition; the same petal identities persist, so layout does not flip between horizontal and vertical bands. This changes visual response only, not expression detection, emoji or statistics.
 
+Joy, surprise and tension hold for 1600 ms on a return to calm before the smooth transition. The decoration layer adds 84 triangles and 84 circles across seven radial bands, with varied sizes, drift, rotation and brightness. These effects share the existing mesh and buffer.
+
 Eight radial knockout seams and gaps between petals reveal the original camera. Every collage layer discards fragments there. The existing participant mosaic, particles, emoji, hands and 6/7 render in front.
 
 ## Rendering
 
-One Three.js mesh / draw call, 13,176 vertices and reusable 18,000-vertex buffers. Direct vertex writes avoid temporary typed-array input allocations. No added inference, microphone, downloaded art textures or postprocessing pass. Decorative motion freezes during pause/reduced motion. Tracking eligibility and participant ownership resets remain intact.
+One Three.js mesh / draw call, 17,964 vertices and reusable 18,000-vertex buffers. Direct vertex writes avoid temporary typed-array input allocations. No added inference, microphone, downloaded art textures or postprocessing pass. Decorative motion freezes during pause/reduced motion. Tracking eligibility and participant ownership resets remain intact.
 
 ## 6/7 repairs
 

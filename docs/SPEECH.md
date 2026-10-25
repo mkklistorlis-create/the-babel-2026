@@ -13,11 +13,11 @@ npm run build
 npm start
 ```
 
-Open http://127.0.0.1:4173 and select Chinese, English, Japanese or Spanish on the start screen. Your choice is both the microphone language and your preferred language for incoming translations. Clicking Start requests camera and microphone permissions. The current utterance grows word by word in one bottom text area, with bold type shrinking to fit. The toolbar offers microphone stop/retry. Refusing microphone permission leaves the camera available.
+Open http://127.0.0.1:4173 and select Chinese, English, Japanese or Spanish on the start screen. Your choice is both the microphone language and your preferred language for incoming translations. Clicking Start requests camera and microphone permissions. The current utterance grows word by word in one bottom text area, with bold type shrinking to fit. Text is drawn directly over the scene without a panel. Completed captions remain for 1.3 seconds. At microphone startup, recognition results below 0.65 confidence are suppressed until the first accepted transcript; later corrected results can appear immediately. Missing confidence remains compatible and this guard cannot rule out high-confidence misrecognition. There is no fixed startup mute. The toolbar offers microphone stop/retry. Refusing microphone permission leaves the camera available.
 
 ## Enable on Vercel
 
-Add these environment variables to the Vercel project, selecting the deployment environments where speech should be available, then redeploy the integration branch:
+Add these environment variables to the Vercel project, selecting the deployment environments where speech should be available, then redeploy that environment from the intended Git commit:
 
 | Variable | Purpose |
 | --- | --- |
