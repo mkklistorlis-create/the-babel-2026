@@ -89,7 +89,7 @@ async function start(){
  if(!renderer||mode!=='idle')return mode==='live'&&cameraReady;
  const token=enter('live');void speechUI?.start?.();notice('正在启动摄像头与视觉追踪…',true);
  try{await tracker.start();if(token!==generation)return false;cameraReady=true;sessionController?.setSource?.({active:true,mode:'live'});notice('把双手伸入画面试着划线，再试试微笑、张嘴或转头。');return true;}
- catch(error){if(token!==generation)return false;cameraReady=false;speechUI?.stop('摄像头未启动，麦克风已关闭。');notice(`摄像头无法启动：${error.message||'请检查授权或模型加载'}。Esc 返回后重试。`,true);$('debug').hidden=false;return false;}
+ catch(error){if(token!==generation)return false;cameraReady=false;speechUI?.stop('摄像头未启动，麦克风已关闭。');notice(`摄像头无法启动：${error.message||'请检查授权或模型加载'}。Esc 返回后重试。`,true);return false;}
 }
 function stop(){
  speechUI?.stop();
@@ -123,7 +123,7 @@ window.addEventListener('keydown',e=>{
  if(e.defaultPrevented)return;
  if(sessionResults?.panelOpen){if(e.key==='Escape'){e.preventDefault();sessionResults.close();}return;}
  if(e.key==='Escape'){if(roomUI?.panelOpen)roomUI.closePanel();else if(!$('debug').hidden)$('debug').hidden=true;else if(mode!=='idle')stop();return;}
- if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||mode==='idle')return;
+ if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
  if(e.key.toLowerCase()==='d')$('debug').hidden=!$('debug').hidden;
 });
 window.addEventListener('pagehide',()=>{speechUI?.destroy();roomUI?.destroy();sessionController?.destroy();sessionResults?.destroy();clearInterval(sessionTimer);tracker.stop();renderer?.destroy();cancelAnimationFrame(frame);clearTimeout(statusTimer);clearTimeout(controlsTimer);});

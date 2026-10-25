@@ -85,9 +85,11 @@ test('demo is explicitly simulated, has two hands and cycles through expression 
  h.key(' ','Space');h.frame(400);assert.equal(h.renderer.state.paused,false);
 });
 
-test('camera startup failure is visible and never falls back to fake live data',async()=>{
+test('camera startup failure stays in manual diagnostics and never falls back to fake live data',async()=>{
  const h=appHarness({startError:'permission fixture'});await h.start();h.frame(200);
- assert.equal(h.nodes.get('debug').hidden,false);assert.match(h.nodes.get('status').textContent,/permission fixture/);
+ assert.equal(h.nodes.get('debug').hidden,true);assert.match(h.nodes.get('status').textContent,/permission fixture/);
+ h.key('d');assert.equal(h.nodes.get('debug').hidden,false);
+ h.key('d');assert.equal(h.nodes.get('debug').hidden,true);
  assert.equal(h.renderer.state.count,0);assert.equal(h.renderer.state.expression.visible,false);assert.equal(h.networkCalls,0);
 });
 
