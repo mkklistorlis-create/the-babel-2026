@@ -8,6 +8,8 @@ const detail=(extra={})=>({type:'meaning',stage:'final',utteranceId:'turn-1',rev
  attributes:['复杂'],degree:'mild',polarity:'negative',uncertain:false,evidence:['有点太复杂'],latencyMs:650,...extra});
 
 test('translation carries a bounded whitelisted target language',()=>{
+ assert.equal(normalizeMeaningMessage(detail({turnOrder:2})).turnOrder,2);
+ for(const turnOrder of [-1,NaN,1.2,Number.MAX_SAFE_INTEGER+1])assert.equal(normalizeMeaningMessage(detail({turnOrder})),null);
  assert.equal(normalizeMeaningMessage(detail({targetLanguage:'ja',translation:'このデザインは少し複雑すぎる。'})).targetLanguage,'ja');
  for(const extra of [{targetLanguage:'fr',translation:'bonjour'},{targetLanguage:'en'},{targetLanguage:'es',translation:''},{targetLanguage:'ja',translation:'x'.repeat(2001)}])assert.equal(normalizeMeaningMessage(detail(extra)),null);
 });

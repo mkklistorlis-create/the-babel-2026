@@ -25,7 +25,9 @@ export function normalizeMeaningMessage(input){
  if(!Array.isArray(input.evidence)||input.evidence.length<1||input.evidence.length>8||
     input.evidence.some(value=>!string(value,160)||!input.text.includes(value)))return null;
  if(input.targetLanguage!==undefined&&(!['zh','en','ja','es'].includes(input.targetLanguage)||!string(input.translation,2000)))return null;
+ if(input.turnOrder!==undefined&&(!Number.isSafeInteger(input.turnOrder)||input.turnOrder<0))return null;
  return {type:'meaning',stage:input.stage,utteranceId:input.utteranceId,revision:input.revision,
+  ...(input.turnOrder!==undefined?{turnOrder:input.turnOrder}:{}),
   language:input.language,...(input.targetLanguage?{targetLanguage:input.targetLanguage,translation:input.translation}:{}),text:input.text,meaning:input.meaning,intent:input.intent,target:input.target,
   attributes:[...input.attributes],degree:input.degree,polarity:input.polarity,uncertain:input.uncertain,
   evidence:[...input.evidence],latencyMs:input.latencyMs};

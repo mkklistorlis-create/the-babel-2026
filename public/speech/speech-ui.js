@@ -8,6 +8,7 @@ const intents={statement:'陈述',question:'提问',request:'请求',evaluate:'�
 export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=createSemanticPlugin(),platform=globalThis}={}){
  const $=id=>platform.document.getElementById('speech-'+id);
  const turns=new TurnView(),remoteTurns=new TurnView();
+ const turnOrders=new Map();let nextTurnOrder=0,remoteOrder=-1;
  const supported=['zh','en','ja','es'];
  let language='zh';
  try{const saved=platform.localStorage?.getItem('babel-language');if(supported.includes(saved))language=saved;}catch{}
@@ -21,8 +22,8 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
  const listeners=[];
  const on=(name,fn)=>{plugin.addEventListener(name,fn);listeners.push([name,fn]);};
  const emit=(name,detail)=>platform.dispatchEvent?.(new CustomEvent(name,{detail}));
- const clearLocal=()=>{turns.reset();latest=null;$('source').textContent='';$('meaning').textContent='';$('meta').textContent='';};
- const clearRemote=()=>{remoteTurns.reset();remote=null;$('remote-source').textContent='';$('remote-meaning').textContent='';$('remote-meta').textContent='';};
+ const clearLocal=()=>{turns.reset();turnOrders.clear();latest=null;$('source').textContent='';$('meaning').textContent='';$('meta').textContent='';};
+ const clearRemote=()=>{remoteTurns.reset();remoteOrder=-1;remote=null;$('remote-source').textContent='';$('remote-meaning').textContent='';$('remote-meta').textContent='';};
  const readySource=()=>{const d=getDiagnostics?.()||{};return d.mode==='live'&&d.occupancy==='single';};
  function controls(){
   $('start').disabled=!config?.enabled||active||connecting||!readySource();
@@ -81,6 +82,7 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
  };
  on('transcript',({detail})=>{
   if(!currentSource())return;
+  if(!turnOrders.has(detail.utteranceId)){turnOrders.set(detail.utteranceId,++nextTurnOrder);if(turnOrders.size>128)turnOrders.delete(turnOrders.keys().next().value);}
   const state=turns.observe(detail.utteranceId);if(!state.current)return;
   if(state.changed){latest=null;$('meaning').textContent='';$('meta').textContent='';}
   $('source').textContent=detail.text;$('source').scrollTop=$('source').scrollHeight;
@@ -93,7 +95,8 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
   if(!currentSource())return;
   const value={...detail,speakerId:connection.role||'local-microphone'};
   if(connection.status==='connected'&&supported.includes(connection.remoteLanguage)&&detail.targetLanguage===connection.remoteLanguage){
-   if(!sendMeaning(detail)&&detail.stage==='final')$('status').textContent='本句已识别；向对方发送失败，请检查联机状态。';
+   const turnOrder=turnOrders.get(detail.utteranceId);
+   if(turnOrder!==undefined&&!sendMeaning({...detail,turnOrder})&&detail.stage==='final')$('status').textContent='本句已识别；向对方发送失败，请检查联机状态。';
   }
   if(!turns.isCurrent(detail.utteranceId))return;
   latest=value;$('meaning').textContent=(detail.stage==='final'?'':'[暂定] ')+detail.meaning;
@@ -109,6 +112,7 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
   if(destroyed||connection.status!=='connected'||!['A','B'].includes(data?.speakerId)||data.speakerId===connection.role)return;
   if(data.type==='reset'){clearRemote();return;}
   if(!['partial','final'].includes(data.stage)||typeof data.text!=='string'||typeof data.translation!=='string'||data.targetLanguage!==language)return;
+  if(data.turnOrder!==undefined){if(data.turnOrder<remoteOrder)return;remoteOrder=data.turnOrder;}
   if(!remoteTurns.observe(data.utteranceId).current)return;
   if(remote?.utteranceId===data.utteranceId&&(data.revision<remote.revision||(data.revision===remote.revision&&(remote.stage==='final'||data.stage!=='final'))))return;
   remote=data;$('remote-source').textContent=data.text;$('remote-meaning').textContent=data.translation;

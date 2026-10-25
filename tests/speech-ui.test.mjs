@@ -114,3 +114,12 @@ test('solo transcript stays in bottom caption region and unknown peer language i
  h.ui.setConnection({status:'connected',roomId:'room',role:'A'});await h.start();transcript(h);meaning(h);
  assert.equal(h.sent.length,0);h.ui.destroy();
 });
+
+test('an unseen delayed final cannot replace a newer translated turn; source order survives microphone restart',async()=>{
+ const h=harness();await tick();h.ui.setConnection({status:'connected',roomId:'room',role:'A',remoteLanguage:'ja'});await h.start();
+ transcript(h,'first');transcript(h,'second');meaning(h,'second');meaning(h,'first');
+ assert.deepEqual(h.sent.map(x=>x.turnOrder),[2,1]);h.ui.stop();await h.start();transcript(h,'third');meaning(h,'third');assert.equal(h.sent.at(-1).turnOrder,3);
+ const value={type:'meaning',speakerId:'B',utteranceId:'new',turnOrder:2,revision:1,language:'en',targetLanguage:'zh',text:'Now',translation:'现在',stage:'partial'};
+ h.ui.receiveMeaning(value);h.ui.receiveMeaning({...value,utteranceId:'never-seen-old',turnOrder:1,stage:'final',translation:'旧句'});
+ assert.equal(h.get('remote-meaning').textContent,'现在');h.ui.destroy();
+});

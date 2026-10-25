@@ -4,12 +4,12 @@ Integrates speech PR #1 (1c8a93a) with main (4077270), preserving the merged ges
 
 - Start screen selects Chinese, English, Japanese or Spanish. Choice persists locally and determines spoken language and incoming translation language.
 - Explicit microphone opt-in remains. Solo original text appears at bottom. Duet original text stays in the local pane; counterpart translation appears in the remote pane, with smaller original text.
-- Partial/final translations travel through the bounded authenticated peer channel. Same-revision finals replace partials; duplicate/reordered output and old-language results are rejected. Changing the remote language cancels obsolete semantic work without reopening the microphone.
+- Partial/final translations travel through the bounded authenticated peer channel. Same-revision finals replace partials; duplicate/reordered output and old-language results are rejected. A monotonically increasing source turn order also blocks delayed finals whose earlier partial never reached the peer. Changing the remote language cancels obsolete semantic work without reopening the microphone.
 - Translation is a separate field from the Chinese semantic explanation, preserving the existing semantic event contract.
 
 ## Automated checks
 
-413 tests passed, including all non-listening regression suites. The three existing tests in tests/prototype.test.mjs require binding TCP ports, denied by the shell sandbox (EPERM). Actual HTTP handlers are independently exercised by tests/speech-site.test.mjs. Gateway tests exercise authentication, audio forwarding, target language switching/cancellation and teardown with in-memory transports.
+414 tests passed, including all non-listening regression suites. The three existing tests in tests/prototype.test.mjs require binding TCP ports, denied by the shell sandbox (EPERM). Actual HTTP handlers are independently exercised by tests/speech-site.test.mjs. Gateway tests exercise authentication, audio forwarding, target language switching/cancellation and teardown with in-memory transports.
 
 npm run build passed, including checksum verification of all 13 vendor assets. Whitespace checks passed for application and test changes; the upstream vendored ws files retain their existing trailing blank lines.
 
