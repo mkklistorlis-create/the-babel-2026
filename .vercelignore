@@ -1,0 +1,12 @@
+node_modules
+dist
+legacy
+server.mjs
+tests
+verification-*.md
+.env*
+public/vendor/*.js
+public/vendor/mediapipe/*.mjs
+public/vendor/mediapipe/*.task
+public/vendor/mediapipe/*.tflite
+public/vendor/mediapipe/wasm

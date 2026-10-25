@@ -1,0 +1,16 @@
+{
+  "name": "between-us",
+  "version": "0.10.1",
+  "private": true,
+  "type": "module",
+  "description": "Camera-only hand trails, facial emoji and particle mosaic interaction study.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node prototype-server.mjs",
+    "dev": "node --watch prototype-server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "build": "node scripts/build.mjs"
+  }
+}

@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.vercel/
+.env
+.env.*
+!.env.example
+.DS_Store
+public/vendor/*.js
+public/vendor/mediapipe/*.mjs
+public/vendor/mediapipe/*.task
+public/vendor/mediapipe/*.tflite
+public/vendor/mediapipe/wasm/
+tests/reports/
+tests/screenshots/
+server.mjs
+legacy/

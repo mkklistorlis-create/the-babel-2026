@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+ <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f3eb">
+ <title>Between Us · 身体与表情</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/session-results.css">
+</head>
+<body>
+ <canvas id="stage" aria-label="粒子马赛克人物、双手划线与头部 emoji 贴饰" tabindex="0"></canvas>
+ <video id="camera" muted playsinline autoplay hidden></video>
+ <section id="remote-pane" hidden aria-label="对方的艺术画面">
+  <video id="remote-video" muted playsinline autoplay hidden></video>
+  <p id="remote-placeholder">等待另一位加入</p><button id="remote-resume" hidden>播放对方画面</button>
+  <span id="participant-remote"></span>
+ </section>
+ <span id="participant-local" hidden></span>
+ <section id="intro" class="intro">
+  <p class="eyebrow">BETWEEN US / BODY STUDY 07</p>
+  <h1>你。<span>我。</span><br>我们之间。</h1>
+  <p class="lead">挥挥手。笑一下。<br>让动作留下痕迹。</p>
+  <div class="actions"><button id="start" class="primary">开始 ↗</button><button id="demo">先试试动态</button><button id="room-open-intro">双人联机</button></div>
+  <p id="consent" class="note">一台电脑，一个人。仅使用摄像头，画面在本机处理。<br>加入双人房间后，将向对方发送处理后的画面（含实景背景）及手部、表情数据。<br>双手划线 · 表情贴饰 · 粒子马赛克</p>
+  <p id="boot-error" role="alert"></p>
+ </section>
+ <span id="mode-tag" hidden>动态演示 · 模拟画面</span>
+ <div id="transport" hidden><button id="exit" title="Esc 返回并关闭摄像头">退出</button><button id="pause">暂停粒子</button><button id="room-open">双人联机</button><button id="debug-toggle">测试面板 D</button></div>
+ <button id="room-badge" hidden aria-label="打开联机状态"></button>
+ <section id="room-panel" hidden role="dialog" aria-modal="false" aria-labelledby="room-title">
+  <div class="panel-heading"><strong id="room-title">一起进入画面</strong><button id="room-close" aria-label="关闭联机面板">×</button></div>
+  <p class="note">两台电脑，各自使用一个摄像头。创建房间后，把邀请链接发给另一位。</p>
+  <label id="room-source-row">本次画面来源<select id="room-source"><option value="live">我的摄像头</option><option value="demo">模拟画面 · 仅测试连接</option></select></label>
+  <button id="room-create" class="primary">创建双人房间 ↗</button>
+  <label for="room-input">已有邀请？</label><input id="room-input" type="text" placeholder="粘贴邀请链接或房间 ID" autocomplete="off" spellcheck="false" maxlength="2048">
+  <button id="room-join">加入房间</button>
+  <p id="room-status" role="status">尚未连接</p>
+  <div id="room-invite-section" hidden><label for="room-invite">发给另一位</label><input id="room-invite" readonly><button id="room-copy">复制邀请链接</button></div>
+  <div class="room-actions"><button id="room-retry" hidden>重新连接</button><button id="room-leave" hidden>离开房间，继续单人</button></div>
+  <p id="room-network-note" class="note"></p>
+  <p class="note">连接由 PeerServer Cloud 协助建立。加入后发送处理后的画面（含实景背景）与互动数据；本版本不传输声音。</p>
+ </section>
+ <aside id="debug" hidden aria-label="视觉交互测试面板">
+  <div class="panel-heading"><strong>视觉交互测试 / 07</strong><button id="debug-close" aria-label="关闭测试面板">×</button></div>
+  <p id="metrics">等待启动</p><p id="tracker-status"></p><p id="hand-status"></p><p id="gesture-status" class="note"></p><p id="room-metrics" class="note"></p>
+  <div class="expression-trace"><p id="expression-output">等待清晰面部</p><p id="face-actions" class="note"></p></div>
+  <p class="note">表情库</p><p id="emoji-library"></p>
+  <div id="demo-settings"><label>演示表情 <select id="demo-expression"></select></label></div>
+  <p class="note">Emoji 跟随可见的面部动作。试试睁大眼、眯眼、单眼闭合，以及保持头部朝前时侧看或向上看；也可微笑、张嘴或嘟嘴。<br>眼部动作保持约半秒，普通眨眼会被过滤。双手轨迹在离开画面后逐渐淡出。</p>
+  <p class="note">双手在镜头里，上下位置交换一次即可开启 6 / 7；停手后继续跟随。双手都移出画面约一秒，或同时握拳，即可结束。</p>
+  <p class="note">D 测试面板 · 空格暂停粒子 · Esc 退出<br>多人出现时暂停个人追踪，确认单人后自动继续。<br>每台电脑仅追踪当前的一位参与者。</p>
+ </aside>
+ <p id="status" role="status" hidden></p>
+ <script src="/vendor/peerjs.min.js"></script><script type="module" src="/app.js"></script>
+</body>
+</html>
