@@ -39,3 +39,10 @@ Each orbit carries signed geometric depth. Segments crossing the body plane are 
 Every family has a gentle 5.6-second light cycle and a slow traveling highlight in its existing shader. There is no extra bloom pass or recognition model. The light is decorative and never enters statistics. Reduced-motion preference and pause freeze its phase. Missing/ambiguous tracking and participant ownership changes clear both front and back arcs.
 
 Each computer renders its own participant's rings into the existing artwork canvas. The existing WebRTC stream transports that composition to the partner, so solo and duet use the same visual implementation without a second model or a new ring-data network stream. Explicit demo mode uses synthetic preset intensity; it is not evidence of camera accuracy.
+
+
+## R11.1 — user sketch adjustment
+
+The October 25 sketch replaces the orbit composition with one horizontal and two ±42° diagonal loops. All five expression families retain their palette, opacity, breathing and edge treatment on the same wide orbital frame; sadness also uses this common frame. Stroke widths are multiplied by 1.8. Overall size follows shoulder span (2.3×) or face width (2.7× fallback), limited by pane width. Lower arcs can extend outside a close camera crop. Chest anchoring and front/back body occlusion remain. Final conversation artwork and recognition coefficients are unchanged.
+
+Validation: 18 orbit tests pass, production build succeeds, Chromium WebGL preview inspected with no page errors. Real webcam positioning remains a hands-on check.

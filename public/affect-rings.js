@@ -2,7 +2,7 @@
  * The visual families describe an artistic mapping of facial movements, not
  * a psychological diagnosis. No extra camera, speech or inference pipeline. */
 import * as THREE from './vendor/three.module.js';
-import {AFFECT_FAMILIES,AFFECT_REFERENCE,createAffectVisualState,sampleAffectStyle} from './affect-visual-state.js';
+import {AFFECT_FAMILIES,createAffectVisualState,sampleAffectStyle} from './affect-visual-state.js';
 
 const TAU=Math.PI*2,DEG=Math.PI/180;
 const clamp=(v,lo=0,hi=1)=>Math.max(lo,Math.min(hi,Number(v)||0));
@@ -30,7 +30,10 @@ export function ellipseArcSites(rx,ry,count=64){
 /** Return only stroke centre-lines. Even surprise has three continuous hollow
  * loops: its spikes belong to the orbit edge, with no central disk or fill. */
 export function buildAffectPaths(family,intensity,{phase=0,reducedMotion=false}={}){
- const style=sampleAffectStyle(family,intensity),g=style.geometry,paths=[];
+ const base=sampleAffectStyle(family,intensity);
+ // User sketch: a wide horizontal orbit plus two diagonals, all around the
+ // same chest centre. Keep expression textures/palettes on this shared frame.
+ const style={...base,width:base.width*1.8},g={...base.geometry,angles:[0,-42,42],radiusX:205,radiusY:78,offsetY:0},paths=[];
  const breathing=!reducedMotion&&(family==='calm'||family==='joy')?1+Math.sin(phase*.72)*.012:1;
  const rx=g.radiusX*g.scale*breathing,ry=g.radiusY*g.scale*breathing,offset=g.offsetY||0;
  for(let ring=0;ring<g.angles.length;ring++){
@@ -109,11 +112,12 @@ export function affectRingPlacement(person,projection,viewport,bounds,now){
  const width=viewport.width,height=viewport.height;if(!(width>0&&height>0))return null;
  const chest=affectChestAnchor(person,projection,now);if(!chest)return null;
  const padding=Math.min(16,width*.03,height*.03);
- // The reference frame has generous side margins. A narrow duet pane keeps
- // the camera's vertical cover scale, then fits the actual strokes, rather
- // than shrinking those margins along with the artwork into the person's face.
- let scale=Math.min(height/AFFECT_REFERENCE.height,2.25);
- scale=Math.min(scale,(width-padding*2)/Math.max(1,bounds.width),(height-padding*2)/Math.max(1,bounds.height));
+ // Size against the participant, with enough reach beyond both shoulders.
+ // Lower arcs may leave a close camera crop, as in the user's sketch; never
+ // compress the orbit vertically or move its centre toward the face to fit.
+ const head=projection.box(person.faceBBox);
+ const desiredWidth=chest.shoulderSpan?chest.shoulderSpan*2.3:head.width*2.7;
+ const scale=Math.min(desiredWidth/410,(width-padding*2)/Math.max(1,bounds.width));
  if(!(scale>0))return null;
  return {...chest,scale};
 }
