@@ -20,7 +20,7 @@ for(const item of EXPRESSION_LIBRARY)$('demo-expression').add(new Option(`${item
 $('demo-expression').value=selected;
 $('emoji-library').textContent=EXPRESSION_LIBRARY.map(item=>item.emoji).join(' ');
 try{renderer=new DuetCanvas($('stage'));}
-catch(error){$('boot-error').textContent=`图形初始化失败：${error.message}。请使用支持 WebGL2 的浏览器。`;$('start').disabled=true;$('demo').disabled=true;}
+catch(error){$('boot-error').textContent=`图形初始化失败：${error.message}。请使用支持 WebGL2 的浏览器。`;$('start').disabled=true;}
 
 function renderNotice(){
  const text=mode==='live'&&occupancy==='multiple'
@@ -101,7 +101,6 @@ function stop(){
 }
 $('start').onclick=start;
 function startDemo(){if(!renderer||mode!=='idle')return mode==='demo';enter('demo');expression=expressionForDemo(selected);sessionController?.setSource?.({active:true,mode:'demo'});notice('动态演示：双手划线、粒子和头部贴饰均为模拟。点击画面切换表情。');return true;}
-$('demo').onclick=startDemo;
 $('exit').onclick=stop;
 function pause(){if(mode==='idle')return;paused=!paused;sessionController?.tick();$('pause').textContent=paused?'继续粒子':'暂停粒子';}
 $('pause').onclick=pause;

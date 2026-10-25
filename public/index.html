@@ -1,11 +1,12 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
- <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f3eb">
- <title>Between Us · 身体与表情</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/session-results.css"><link rel="stylesheet" href="/speech/speech-ui.css"><link rel="stylesheet" href="/ui-layout.css">
+ <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#e5ff4a">
+ <title>The Babel — You. Me. In Between.</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/session-results.css"><link rel="stylesheet" href="/speech/speech-ui.css"><link rel="stylesheet" href="/ui-layout.css">
  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Noto+Sans+JP:wght@700&family=Noto+Sans+SC:wght@700&display=swap" rel="stylesheet">
  <link rel="stylesheet" href="/speech/kinetic-captions.css">
+ <link rel="stylesheet" href="/intro.css">
 </head>
 <body>
  <canvas id="stage" aria-label="粒子马赛克人物、双手划线与头部 emoji 贴饰" tabindex="0"></canvas>
@@ -16,14 +17,24 @@
   <span id="participant-remote"></span>
  </section>
  <span id="participant-local" hidden></span>
- <section id="intro" class="intro">
-  <p class="eyebrow">BETWEEN US / BODY STUDY 07</p>
-  <h1>你。<span>我。</span><br>我们之间。</h1>
-  <p class="lead">挥挥手。笑一下。<br>让动作留下痕迹。</p>
-  <label class="language-choice" for="speech-language"><span>我使用的语言 / MY LANGUAGE</span><select id="speech-language"><option value="zh">中文</option><option value="en">English</option><option value="ja">日本語</option><option value="es">Español</option></select><small>用于识别我的话，也用于显示对方的译文。</small></label>
-  <div class="actions"><button id="start" class="primary">开始 ↗</button><button id="demo">先试试动态</button><button id="room-open-intro">双人联机</button></div>
-  <p id="consent" class="note">一台电脑，一个人。点击开始将申请摄像头与麦克风权限。画面在本机处理；语音发送到 Deepgram，文字发送到语义服务。<br>加入双人房间后，将向对方发送处理后的画面（含实景背景）及手部、表情数据、原文与译文。<br>双手划线 · 表情贴饰 · 粒子马赛克</p>
-  <p id="boot-error" role="alert"></p>
+ <section id="intro" class="intro" lang="en" aria-label="The Babel welcome">
+  <div class="intro-content">
+   <svg class="babel-brand" viewBox="0 0 760 230" role="img" aria-label="The Babel">
+    <title>The Babel</title>
+    <g fill="currentColor"><path d="M0 0H170V92H93L46 138V92H0Z"/><path d="M62 138H139L185 92V138H232V230H62Z"/></g>
+    <g class="babel-wordmark" fill="currentColor"><text x="280" y="79" font-size="100" textLength="200" lengthAdjust="spacingAndGlyphs">THE</text><text x="280" y="230" font-size="151" textLength="480" lengthAdjust="spacingAndGlyphs">BABEL</text></g>
+   </svg>
+   <h1 class="intro-tagline">YOU. ME. IN BETWEEN.</h1>
+   <div class="intro-controls">
+    <div class="intro-languages" role="group" aria-label="Your spoken and translation language">
+     <button type="button" data-language="en" aria-pressed="false">English</button><button type="button" data-language="zh" aria-pressed="true">Chinese</button><button type="button" data-language="ja" aria-pressed="false">Japanese</button><button type="button" data-language="es" aria-pressed="false">Spanish</button>
+    </div>
+    <label hidden for="speech-language">Your language<select id="speech-language"><option value="zh">Chinese</option><option value="en">English</option><option value="ja">Japanese</option><option value="es">Spanish</option></select></label>
+    <div class="intro-actions"><button id="start" class="primary">Start creating ↗</button><button id="room-open-intro">Connect with someone ↗</button></div>
+    <p id="boot-error" role="alert"></p>
+   </div>
+  </div>
+  <p id="consent" class="intro-consent">One person per device. Starting requests camera and microphone access.<br>Video is processed on your device. Audio goes to Deepgram; text goes to the semantic service.<br>Connecting shares your processed video (including your background), interaction data and captions with your partner.</p>
  </section>
  <span id="mode-tag" hidden>动态演示 · 模拟画面</span>
  <button id="room-badge" hidden aria-label="打开联机状态"></button>
@@ -55,6 +66,6 @@
   <div id="caption-deck" aria-label="实时字幕区"><section id="speech-captions" class="live-captions" hidden aria-label="我的实时字幕"><strong id="speech-local-label">我说的话</strong><p id="speech-source" class="caption-text" aria-live="polite" aria-atomic="true"></p><div hidden><p id="speech-meaning"></p><p id="speech-meta"></p></div><p id="speech-caption-state" class="caption-meta"></p></section><section id="speech-remote" class="live-captions remote-captions" hidden aria-label="对方的实时翻译"><strong>对方说的话</strong><p id="speech-remote-meaning" class="caption-text" aria-live="polite" aria-atomic="true"></p><p id="speech-remote-source" class="caption-original"></p><p id="speech-remote-meta" class="caption-meta"></p></section></div>
   <div id="control-deck"><div id="transport" hidden><button id="speech-start">开启麦克风</button><button id="speech-stop" hidden>关闭麦克风</button><button id="exit" title="Esc 返回并关闭摄像头">退出</button><button id="pause">暂停粒子</button><button id="room-open">双人联机</button><button id="debug-toggle">调试 D</button></div></div>
  </div>
- <script src="/vendor/peerjs.min.js"></script><script type="module" src="/app.js"></script><script type="module" src="/ui-layout.js"></script><script type="module" src="/speech/kinetic-captions.js"></script>
+ <script src="/vendor/peerjs.min.js"></script><script type="module" src="/app.js"></script><script type="module" src="/ui-layout.js"></script><script type="module" src="/speech/kinetic-captions.js"></script><script type="module" src="/intro.js"></script>
 </body>
 </html>

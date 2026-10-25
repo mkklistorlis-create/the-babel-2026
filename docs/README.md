@@ -15,6 +15,8 @@
 
 ## Verification
 
+- [Homepage redesign](verification/homepage-redesign.md)
+
 - [Integrated release and final manual checks](verification/release-r123.md)
 - [Bold adaptive multilingual captions](verification/kinetic-captions.md)
 - [Caption duration, emotion hold and initial particles](verification/caption-background-timing.md)
