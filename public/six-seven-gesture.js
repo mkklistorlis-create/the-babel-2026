@@ -3,6 +3,7 @@
  */
 import {isClosedFist} from './hand-pose.js';
 const validPoint=p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y)&&p.x>=0&&p.x<=1&&p.y>=0&&p.y<=1;
+const finitePoint=p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y);
 const knownSide=h=>h?.handedness==='Left'||h?.handedness==='Right';
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 
@@ -54,7 +55,7 @@ export class SixSevenGestureTracker{
   if(this._owner!==owner||now<this._time)this.reset();
   this._owner=owner;this._time=now;
   if(!Array.isArray(hands)||observed.length>2||observed.some(h=>typeof h?.id!=='string'||!h.id
-   ||!validPoint(h.palm)||!validPoint(h.tip)||!Number.isFinite(h.timestamp)||h.timestamp>now+50)
+   ||!validPoint(h.palm)||!finitePoint(h.tip)||!Number.isFinite(h.timestamp)||h.timestamp>now+50)
    ||observed.length===2&&observed[0].id===observed[1].id){
    this.reset();this._status='invalid';return this._result(now,observed);
   }
@@ -92,7 +93,9 @@ export class SixSevenGestureTracker{
    // A single visible hand keeps its own numeral. The missing hand has no
    // fabricated position; the latch stays on until both hands leave.
    this._fistSince=null;this._fistSamples=0;
-   if(!this._latched)this._side=0;
+   // A brief occlusion during the swap must retain the last measured pair.
+   // The original maxGapMs still expires old evidence; no hidden hand moves.
+   if(!this._latched&&timestamp-this._pairSource>this.maxGapMs)this._side=0;
    this._status=this._latched?'partial':'waiting-hands';return this._result(now,observed);
   }
   if(this._fistHands===2){

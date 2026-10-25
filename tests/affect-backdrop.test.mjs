@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Group} from '../public/vendor/three.module.js';
 import {AFFECT_FAMILIES} from '../public/affect-visual-state.js';
-import {AffectBackdrop,composeBackdrop} from '../public/affect-backdrop.js';
+import {AffectBackdrop,composeBackdrop,smoothBackdropWeights} from '../public/affect-backdrop.js';
 
 const state=(family,intensity=.65)=>({visible:true,weights:Object.fromEntries(AFFECT_FAMILIES.map(f=>[f,Number(f===family)])),strengths:Object.fromEntries(AFFECT_FAMILIES.map(f=>[f,intensity]))});
 const person=t=>({faceSeen:true,stale:false,faceObservedAt:t});
@@ -12,7 +12,7 @@ test('each palette creates a bounded, seeded collage of solid forms and open lin
   const commands=composeBackdrop(state(family),5,42,720,900);
   assert.deepEqual(commands,composeBackdrop(state(family),5,42,720,900));
   assert.equal(commands.filter(c=>c.type==='fill').length,16);
-  assert.equal(commands.filter(c=>c.type==='strip').length,15);
+  assert.equal(commands.filter(c=>c.type==='strip').length,30);
   assert.equal(commands.filter(c=>c.type==='line').length,12);
   for(const c of commands){assert.ok(c.alpha>=0&&c.alpha<=1);assert.ok(c.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)));}
   assert.notDeepEqual(commands,composeBackdrop(state(family),8,42,720,900));
@@ -20,7 +20,7 @@ test('each palette creates a bounded, seeded collage of solid forms and open lin
  assert.notDeepEqual(composeBackdrop(state('joy')),composeBackdrop(state('tension')));
  assert.deepEqual(composeBackdrop({visible:false}),[]);
 });
-test('background does not follow face position and its fixed buffers survive expression changes',()=>{
+test('fallback origin is stable and fixed buffers survive expression changes',()=>{
  const group=new Group(),layer=new AffectBackdrop(group),buffers=layer.buffers;
  const opts={owner:'A',expression:expression('smile')};
  layer.update(person(0),{},0,opts);const before=Array.from(buffers.position);
@@ -41,4 +41,39 @@ test('pause and reduced motion freeze decorative time; invalid tracking and owne
  layer.update(person(1300),{},1300,{...opts,owner:'B'});assert.equal(layer.stats.visible,true);
  layer.update(person(1400),{},1400,{...opts,enabled:false});assert.equal(layer.stats.visible,false);
  layer.dispose();
+});
+
+test('every petal has pointed ends and extends outward from the participant',()=>{
+ const center={x:.38,y:.57},width=900,height=640;
+ for(const family of AFFECT_FAMILIES){
+  const commands=composeBackdrop(state(family),1,42,width,height,center);
+  for(const c of commands.filter(c=>c.type==='strip')){
+   const last=c.points.length-1;
+   assert.ok(Math.hypot(c.points[0].x-c.other[0].x,c.points[0].y-c.other[0].y)<1e-6);
+   assert.ok(Math.hypot(c.points[last].x-c.other[last].x,c.points[last].y-c.other[last].y)<1e-6);
+   const radius=p=>Math.hypot(p.x-center.x*width,p.y-center.y*height);
+   assert.ok(radius(c.points[last])>radius(c.points[0])*3);
+  }
+ }
+});
+test('render weights remain normalized and continuous through rapid expression retargeting',()=>{
+ let memory=smoothBackdropWeights(null,state('calm').weights,0),maxStep=0;
+ for(let i=0;i<180;i++){
+  const previous={...memory.value},target=state(i<30?'joy':i<60?'tension':'sadness').weights;
+  memory=smoothBackdropWeights(memory,target,1/60);
+  assert.ok(Math.abs(Object.values(memory.value).reduce((a,b)=>a+b,0)-1)<1e-9);
+  for(const f of AFFECT_FAMILIES){assert.ok(memory.value[f]>=0&&memory.value[f]<=1);maxStep=Math.max(maxStep,Math.abs(previous[f]-memory.value[f]));}
+ }
+ assert.ok(maxStep<.04);assert.ok(memory.value.sadness>.99);
+ const frozen=structuredClone(memory);smoothBackdropWeights(memory,state('joy').weights,0);assert.deepEqual(memory,frozen);
+});
+test('bloom origin follows projected participant slowly without single-frame jumps',()=>{
+ const layer=new AffectBackdrop(new Group()),projection={point:(x,y)=>({x:x*900,y:y*640})};
+ const opts={owner:'A',expression:expression('smile'),viewport:{width:900,height:640}};
+ layer.update({...person(0),faceCenter:{x:.3,y:.3}},projection,0,opts);
+ const first=layer.stats.origin.x;
+ layer.update({...person(100),faceCenter:{x:.7,y:.3}},projection,100,opts);
+ assert.ok(layer.stats.origin.x>first&&layer.stats.origin.x<first+.1);
+ for(let t=200;t<=2100;t+=100)layer.update({...person(t),faceCenter:{x:.7,y:.3}},projection,t,opts);
+ assert.ok(layer.stats.origin.x>.68);layer.dispose();
 });

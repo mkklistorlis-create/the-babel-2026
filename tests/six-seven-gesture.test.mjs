@@ -148,3 +148,22 @@ test('single crossing survives slow CPU, identity renewal and rAF duplicates, th
 test('occasional missing single hands do not end the latched state in the full hand filter pipeline',()=>{
  assert.ok(livePipeline({cadence:333,delay:280,missingEvery:4}).firstActive!==null);
 });
+
+test('a brief one-hand miss during the first exchange preserves the last two-hand order',()=>{
+ const tracker=new SixSevenGestureTracker();
+ tracker.update(pair(.42,.58,100),100);
+ tracker.update([pair(.52,.48,350)[0]],350);
+ assert.equal(tracker.update(pair(.58,.42,600),600).latched,true);
+ const expired=new SixSevenGestureTracker();
+ expired.update(pair(.42,.58,100),100);
+ expired.update([pair(.52,.48,600)[0]],600);
+ assert.equal(expired.update(pair(.58,.42,1800),1800).latched,false);
+});
+test('visible palms can cross while fingertips extend just beyond the camera edge',()=>{
+ const tracker=new SixSevenGestureTracker();
+ const edgePair=(a,b,t)=>pair(a,b,t).map(h=>({...h,tip:{x:h.palm.x,y:h.palm.y-.2}}));
+ tracker.update(edgePair(.10,.22,100),100);
+ assert.equal(tracker.update(edgePair(.22,.10,350),350).latched,true);
+ const invalid=edgePair(.10,.22,600);invalid[0].tip.y=NaN;
+ assert.equal(tracker.update(invalid,600).latched,false);
+});

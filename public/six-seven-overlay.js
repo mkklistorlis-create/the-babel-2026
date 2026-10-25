@@ -53,7 +53,11 @@ export class SixSevenOverlay{
    const top=Math.min(...points.map(p=>projection.point(p.x,p.y).y));
    const size=clamp(Math.min(projection.width,projection.height)*.24,90,190);
    // Texture margins leave the glyph baseline at 85% of its plane height.
-   const target={x:palm.x,y:top-size*.35-8};
+   // Camera-cover dimensions include cropped margins. Recover the actual
+   // viewport, then keep the held glyph visible when fingers reach its edge.
+   const width=projection.width+2*(projection.x||0),height=projection.height+2*(projection.y||0);
+   const marginX=Math.min(width/2,size*.375+8),marginY=Math.min(height/2,size*.5+8);
+   const target={x:clamp(palm.x,marginX,width-marginX),y:clamp(top-size*.35-8,marginY,height-marginY)};
    // Gesture slots survive the ink tracker's short-lived hand IDs. Two anchors
    // stay bounded and continue interpolating through a valid reacquisition.
    let anchor=this.anchors.get(hand.digit);

@@ -1,6 +1,6 @@
-# The Babel — R12.1 transparent screenprint collage
+# The Babel — R12.2 radial bloom
 
-R12.1 translates the five approved image concepts into animated torn-paper ribbons, sharp fragments, halftone and print texture. Deep solid ink areas become transparent openings onto the unmodified camera background. Existing facial-action values morph the five compositions and control their movement; no additional recognition task is introduced. Final solo/duet artwork and statistics remain unchanged. See [BACKDROP-VISUALS.md](BACKDROP-VISUALS.md) for implementation and validation.
+R12.2 replaces rectangular background strips with pointed petals radiating from the participant. Five palettes share a continuous composition, with slower color/shape transitions and smoothed motion. Camera cutouts remain transparent. The 6/7 gesture now tolerates a brief single-hand miss during the first crossing and fingertips beyond the camera edge; held digits stay inside the viewport. Final solo/duet artwork and statistics are unchanged. See [BACKDROP-VISUALS.md](BACKDROP-VISUALS.md) for implementation and validation.
 
 ## Previous graphic versions
 

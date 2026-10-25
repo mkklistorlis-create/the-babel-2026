@@ -216,3 +216,18 @@ test('demo contains one person, two moving hands and a bounded 3D head pose',()=
  assert.notDeepEqual(a[0].hands[0].tip,b[0].hands[0].tip);assert.notDeepEqual(a[0].headPose,b[0].headPose);
  assert.ok(Math.abs(a[0].headPose.yaw)<1);assert.equal(a[0].hands[0].timestamp,1000);
 });
+
+test('six/seven remains inside the viewport when fingertips rise above the camera',()=>{
+ const {r,cleanup}=harness();try{
+  const projection=cameraProjection(1440,900,640,360);
+  const hands=(a,b,t)=>[{id:'a',palm:{x:.75,y:a},tip:{x:.75,y:a-.2},timestamp:t},
+   {id:'b',palm:{x:.25,y:b},tip:{x:.25,y:b-.2},timestamp:t}];
+  r.sixSeven.update(hands(.1,.22,100),projection,100,{dt:.1});
+  r.sixSeven.update(hands(.22,.1,350),projection,350,{dt:.25});
+  assert.equal(r.sixSeven.stats.latched,true);
+  for(const mesh of r.sixSeven.meshes.values()){
+   assert.equal(mesh.visible,true);assert.ok(mesh.position.y>=Math.abs(mesh.scale.y)/2);
+   assert.ok(mesh.position.y<=900-Math.abs(mesh.scale.y)/2);
+  }
+ }finally{cleanup();}
+});

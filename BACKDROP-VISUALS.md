@@ -1,32 +1,28 @@
-# R12.1 — transparent screenprint collage
+# R12.2 — radial bloom with soft transitions
 
-The five approved concept images guide the live backdrop: large torn-paper swaths, offset cream edges, angular cutouts, fine parallel cuts, dense halftone and paper distress. The concepts' dark solid masses become transparent camera windows. No dark background rectangle or tinted camera filter is introduced.
+The live composition now grows from the participant toward every edge: 24 pointed torn-paper petals, 16 slender spears and three bundles of fine radial cuts. All five palettes share this topology. Calm gently curves; joy expands; surprise lengthens; tension narrows; sadness softens with a slight downward bend. Rectangular strip layouts have been removed.
 
-## Composition and movement
+The origin follows the projected face/chin region with a 550 ms smoothing constant. Existing facial observations supply the location; no new model is added. Seeded angular variation and gentle breathing keep the composition alive. Wide color planes, paper texture, offset cream edges and halftone retain the approved concept vocabulary.
 
-| Family | Light inks | Geometry and motion |
-| --- | --- | --- |
-| Calm | Sage, ivory, mint | Broad horizontal torn ribbons with slow flowing deformation |
-| Joy | Orange, yellow, cream | Splayed diagonals, elastic width and buoyant drifting |
-| Surprise | Violet, pink, blush | Opposing diagonals and sharp interlocking fragments |
-| Tension | Coral, pale coral, cream | Compressed steep strips and tight angular cuts |
-| Sadness | Slate blue, muted violet, pale blue-gray | Descending vertical ribbons with slow sway |
+The decorative family transition is now 1500 ms with a two-stage 200 ms low-pass on render weights. Intensity uses a 420 ms time constant. Retargeting midway through a transition preserves the current blended composition; the same petal identities persist, so layout does not flip between horizontal and vertical bands. This changes visual response only, not expression detection, emoji or statistics.
 
-Eleven large swaths have 112 segments per edge, fixed multiscale tears, and four off-register cream underprints. Sixteen long/short wedges and three small line bundles supply a secondary scale. Geometry uses common topology, so the existing 900 ms family transition morphs layout and inks continuously. Existing facial-action intensity affects ribbon width, breathing amplitude and motion rate. Seeded, integrated motion avoids per-frame random flicker. These are artistic mappings of observed facial configurations, not psychological diagnoses.
+Eight radial knockout seams and gaps between petals reveal the original camera. Every collage layer discards fragments there. The existing participant mosaic, particles, emoji, hands and 6/7 render in front.
 
-Nine screen-space knockout wedges remove ALL collage ink layers at their positions. Natural gaps between paper pieces also remain transparent. Fine dark halftone dots are retained as printed detail, while the large dark masses are absent. The original camera is drawn first; the paper collage follows; the existing body mosaic, particles, hands, emoji and 6/7 remain in front.
+## Rendering
 
-## Rendering and preservation
+One Three.js mesh / draw call, 13,176 vertices and reusable 18,000-vertex buffers. Direct vertex writes avoid temporary typed-array input allocations. No added inference, microphone, downloaded art textures or postprocessing pass. Decorative motion freezes during pause/reduced motion. Tracking eligibility and participant ownership resets remain intact.
 
-One Three.js mesh / draw call, 10,296 vertices, reusable 18,000-vertex buffers. The fragment shader draws halftone, grain, fine edge tears and alpha-discard windows. No added recognition model, audio processing, image downloads or postprocessing pass. Pause and reduced motion freeze decorative time; stale tracking and multiple-person state use the existing eligibility gates.
+## 6/7 repairs
 
-The same renderer runs for solo and duet, and the existing processed video stream carries the backdrop to the peer. Expression coefficients, participant rendering, hand gestures, final session artwork, statistics and exports are unchanged. R12.0 remains in Git history.
+Two reproducible missed-trigger cases were found and covered by regression tests:
+
+- A brief single-hand miss during the first exchange erased the last two-hand order. The last measured order now survives within the existing 1400 ms evidence window; no unseen hand position is invented.
+- A fingertip beyond the image edge invalidated the entire pair even when both palms were visible. Finite offscreen tips are now allowed; invalid coordinates and out-of-frame palms still reject the observation.
+
+Held digits are clamped to the actual viewport so raised hands do not push the whole accessory offscreen. One measured height exchange still activates; both hands missing for a second or two sustained fists still stops it. Owner/multiple-person/stale-input gates are unchanged.
 
 ## Validation
 
-- All 294 existing tests pass, including deterministic composition, bounded buffers, face-independent coordinates and pause/stale/ownership behavior.
-- Production build verifies all 13 pinned runtime assets.
-- Chromium WebGL preview inspected in all five families with no page or shader errors.
-- GPU alpha readback at 640 × 400 found 32–53% transparent background pixels across five seeded sample compositions. Every fully transparent pixel retained the exact RGB of the underlying test background.
-- GPU frames two seconds apart changed in all five families, confirming rendered animation rather than only changing diagnostic values.
-- This is a procedural interpretation of the approved image concepts. Browser checks use simulated input; physical webcam expression accuracy is unchanged and was not remeasured.
+300 tests pass, including the two previously failing gesture regressions, viewport placement, pointed radial geometry, smooth retargeting, tracked origin smoothing, bounded buffers and the existing gesture lifecycle cases. Production build verifies all 13 pinned assets. Browser verification uses simulated camera input; physical webcam behavior needs the user's retest.
+
+R12.1 remains in Git history. Final artwork, charts, exports, face recognition coefficients and fingertip ink are unchanged.
