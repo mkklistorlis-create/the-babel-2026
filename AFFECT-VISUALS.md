@@ -62,3 +62,10 @@ Band width is 32 + 0.8 × the existing expression stroke width in reference unit
 Reference ellipse radii change from 205 × 62 to 260 × 38. Participant-relative reach increases from 2.3 to 2.65 shoulder spans (face fallback 2.7 to 3.1 widths). Neck centers and angles remain unchanged. Band thickness is foreshortened at the ellipse tips to prevent folding.
 
 Breathing now takes 3.8 seconds per cycle with an opacity multiplier from 0.25 to 1.0. The shader also changes band spread and highlight brightness. Paused/reduced-motion behavior remains. Verified all 19 orbit tests, production build and browser screenshots at bright/dim phases without page errors.
+
+
+## R11.4 — independent floating motion
+
+Each orbit now has independent seeded smooth-noise translation and rotation: up to 11 × 9 reference units of drift and ±3.2° tilt. Slow wandering is mixed with a smaller faster component, fading in at startup. Time-based interpolation avoids frame-to-frame random jitter. Pause freezes phase; reduced motion disables drift. Diagnostics report the actual displaced centers. Existing light breathing remains separate from recognition/statistics.
+
+Ellipses extend from 260 × 38 to 300 × 34 reference radii, with participant reach increased to 2.9 shoulder spans or 3.4 face widths. The final session artwork is unchanged. Verified 20 orbit tests, production build, and WebGL motion preview with no page errors.

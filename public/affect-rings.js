@@ -17,6 +17,21 @@ export const ORBIT_LAYOUT=Object.freeze([
  Object.freeze({angle:-55,x:13,y:-11}),
 ]);
 
+// Seeded, smoothly interpolated noise: each orbit floats independently.
+// It is time-based, so frame rate cannot change the motion or cause jumps.
+function smoothNoise(t,seed){
+ const i=Math.floor(t),f=t-i,u=f*f*(3-2*f);
+ const hash=n=>{const v=Math.sin(n*127.1+seed*311.7)*43758.5453;return (v-Math.floor(v))*2-1;};
+ return hash(i)*(1-u)+hash(i+1)*u;
+}
+export function orbitDrift(ring,phase=0,reducedMotion=false){
+ const t=Number.isFinite(phase)?Math.max(0,phase):0;
+ if(reducedMotion||t===0)return {x:0,y:0,angle:0};
+ const fade=1-Math.exp(-t*1.2),seed=ring*17+3;
+ const wander=k=>.78*smoothNoise(t*.42,seed+k)+.22*smoothNoise(t*1.3,seed+k+41);
+ return {x:11*fade*wander(1),y:9*fade*wander(7),angle:3.2*fade*wander(13)};
+}
+
 /** Numerical inverse arc-length lookup: chevrons are equally spaced along an
  * ellipse, rather than bunched at its narrow ends by equal-angle sampling. */
 export function ellipseArcSites(rx,ry,count=64){
@@ -38,11 +53,11 @@ export function ellipseArcSites(rx,ry,count=64){
 export function buildAffectPaths(family,intensity,{phase=0,reducedMotion=false}={}){
  const base=sampleAffectStyle(family,intensity);
  // Wide ring bands keep the existing expression palette and edge character.
- const style={...base,width:32+base.width*.8},g={...base.geometry,angles:ORBIT_LAYOUT.map(o=>o.angle),radiusX:260,radiusY:38,offsetY:0},paths=[];
+ const style={...base,width:32+base.width*.8},g={...base.geometry,angles:ORBIT_LAYOUT.map(o=>o.angle),radiusX:300,radiusY:34,offsetY:0},paths=[];
  const breathing=!reducedMotion&&(family==='calm'||family==='joy')?1+Math.sin(phase*.72)*.012:1;
  const rx=g.radiusX*g.scale*breathing,ry=g.radiusY*g.scale*breathing,offset=g.offsetY||0;
  for(let ring=0;ring<g.angles.length;ring++){
-  const center=ORBIT_LAYOUT[ring],angle=g.angles[ring]*DEG,depthRadius=Math.sqrt(Math.abs(rx*rx-ry*ry));
+  const drift=orbitDrift(ring,phase,reducedMotion),origin=ORBIT_LAYOUT[ring],center={x:origin.x+drift.x,y:origin.y+drift.y},angle=(g.angles[ring]+drift.angle)*DEG,depthRadius=Math.sqrt(Math.abs(rx*rx-ry*ry));
   // Lift the reference ellipse into an inclined orbital plane. Its near half
   // is drawn in front of the torso; its far half is occluded by the torso.
   const transform=p=>{const q=rotate(p,angle);return {x:q.x+center.x,y:q.y+offset+center.y,
@@ -120,8 +135,8 @@ export function affectRingPlacement(person,projection,viewport,bounds,now){
  // Lower arcs may leave a close camera crop, as in the user's sketch; never
  // compress the orbit vertically or move its centre toward the face to fit.
  const head=projection.box(person.faceBBox);
- const desiredWidth=chest.shoulderSpan?chest.shoulderSpan*2.65:head.width*3.1;
- const scale=Math.min(desiredWidth/520,(width-padding*2)/Math.max(1,2*Math.max(Math.abs(bounds.minX),Math.abs(bounds.maxX))));
+ const desiredWidth=chest.shoulderSpan?chest.shoulderSpan*2.9:head.width*3.4;
+ const scale=Math.min(desiredWidth/600,(width-padding*2)/Math.max(1,2*Math.max(Math.abs(bounds.minX),Math.abs(bounds.maxX))));
  if(!(scale>0))return null;
  return {...chest,scale};
 }
@@ -199,7 +214,7 @@ export class AffectRings{
    let nx=n1.x+n2.x,ny=n1.y+n2.y,length=Math.hypot(nx,ny);if(length<.001){nx=n2.x;ny=n2.y;length=1;}nx/=length;ny/=length;
    // Foreshorten the band at the narrow ends of the flattened ellipse.
    // This keeps a wide front arc without folding its inner edge at the tips.
-   const localHalf=half*(path.kind==='chevrons'?1:Math.min(1,Math.hypot(p.orbitY,p.orbitX*38/260)));
+   const localHalf=half*(path.kind==='chevrons'?1:Math.min(1,Math.hypot(p.orbitY,p.orbitX*34/300)));
    const extension=Math.min(localHalf*2.5,localHalf/Math.max(.4,Math.abs(nx*n2.x+ny*n2.y))),color=gradient(path.palette,path.gradientStops,(p.x+220)/440);
    const orbit=rotate({x:p.orbitX,y:p.orbitY},path.ring*.8);
    edges.push({left:{x:p.x+nx*extension,y:p.y+ny*extension},right:{x:p.x-nx*extension,y:p.y-ny*extension},z:p.z,orbitX:orbit.x,orbitY:orbit.y,color});
@@ -243,7 +258,7 @@ export class AffectRings{
   const light=affectLightPhase(this.phase);this.material.uniforms.uBreath.value=light.breath;this.material.uniforms.uTravel.value=light.travel;
   this.geometry.setDrawRange(0,this.backCount);this.frontGeometry.setDrawRange(this.capacity-this.frontCount,this.frontCount);this.mesh.visible=this.backCount>0;this.frontMesh.visible=this.frontCount>0;
   this.stats={visible:this.count>0,family:state.family,intensity:state.intensity,vertices:this.count,backVertices:this.backCount,frontVertices:this.frontCount,pathCount:paths.length,scale:this.anchor.scale,
-   anchor:{x:this.anchor.x,y:this.anchor.y,kind:this.anchor.kind},centers:ORBIT_LAYOUT.map(o=>({x:this.anchor.x+o.x*this.anchor.scale,y:this.anchor.y+o.y*this.anchor.scale,angle:o.angle})),breath:light.breath,activeFamilies:AFFECT_FAMILIES.filter(key=>state.weights[key]>.001)};
+   anchor:{x:this.anchor.x,y:this.anchor.y,kind:this.anchor.kind},centers:ORBIT_LAYOUT.map((o,i)=>{const d=orbitDrift(i,this.phase,reducedMotion);return {x:this.anchor.x+(o.x+d.x)*this.anchor.scale,y:this.anchor.y+(o.y+d.y)*this.anchor.scale,angle:o.angle+d.angle};}),breath:light.breath,activeFamilies:AFFECT_FAMILIES.filter(key=>state.weights[key]>.001)};
   return this.stats;
  }
  dispose(){this.clear();this.mesh.removeFromParent();this.frontMesh.removeFromParent();this.geometry.dispose();this.frontGeometry.dispose();this.material.dispose();}

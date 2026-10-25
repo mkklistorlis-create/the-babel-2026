@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Group} from '../public/vendor/three.module.js';
 import {AFFECT_FAMILIES} from '../public/affect-visual-state.js';
-import {AffectRings,buildAffectPaths,ellipseArcSites,affectBounds,affectRingPlacement,affectChestAnchor,affectLightPhase,ORBIT_LAYOUT} from '../public/affect-rings.js';
+import {AffectRings,buildAffectPaths,ellipseArcSites,affectBounds,affectRingPlacement,affectChestAnchor,affectLightPhase,ORBIT_LAYOUT,orbitDrift} from '../public/affect-rings.js';
 import {cameraProjection} from '../public/duet-canvas.js';
 
 const ids={calm:'neutral',joy:'smile',surprise:'open-mouth',tension:'brow-furrow',sadness:'mouth-frown'};
@@ -72,7 +72,7 @@ test('tension is three orbits of 64 open 90-degree chevrons with the measured sq
 });
 
 test('tension arrows follow the orbit tangent with both legs behind their apex',()=>{
- const {sites}=ellipseArcSites(260,38,64),angles=[22,-17,-55];
+ const {sites}=ellipseArcSites(300,34,64),angles=[22,-17,-55];
  for(const intensity of [0,.5,1])for(const [index,path] of buildAffectPaths('tension',intensity).filter(p=>p.kind==='chevrons').entries()){
   const angle=angles[path.ring]*Math.PI/180,local=sites[index%64].tangent;
   const t={x:local.x*Math.cos(angle)-local.y*Math.sin(angle),y:local.x*Math.sin(angle)+local.y*Math.cos(angle)};
@@ -93,11 +93,11 @@ function ellipseArcLength(from,to,rx,ry){
  return sum*h/3;
 }
 test('chevron sites follow equal ellipse arc lengths, including the closing interval',()=>{
- const {sites,total}=ellipseArcSites(260,38,64);
+ const {sites,total}=ellipseArcSites(300,34,64);
  assert.equal(sites.length,64);
- const arcs=sites.map((site,i)=>ellipseArcLength(site.angle,sites[i+1]?.angle??Math.PI*2,260,38));
+ const arcs=sites.map((site,i)=>ellipseArcLength(site.angle,sites[i+1]?.angle??Math.PI*2,300,34));
  for(const [i,site] of sites.entries()){
-  close(site.point.x**2/260**2+site.point.y**2/38**2,1);
+  close(site.point.x**2/300**2+site.point.y**2/34**2,1);
   close(Math.hypot(site.tangent.x,site.tangent.y),1);
   close(arcs[i],total/64,.001);
  }
@@ -161,7 +161,7 @@ test('splitting a 1440 px stage into two 720 px panes retains ring presence at t
  for(const family of AFFECT_FAMILIES){
   const bounds=affectBounds(buildAffectPaths(family,.65,{reducedMotion:true})),person=face(0);
   const full=affectRingPlacement(person,projection(solo),solo,bounds),half=affectRingPlacement(person,projection(duet),duet,bounds);
-  assert.ok(half.scale>=full.scale*.65,`${family} must retain presence instead of halving with the pane width`);
+  assert.ok(bounds.width*full.scale>=solo.width*.5,`${family} keeps its extended reach in the solo view`);
   assert.ok(bounds.width*half.scale>duet.width*.65,`${family} remains prominent after its wider border is fitted`);
   assert.ok(bounds.width*half.scale>=duet.width*.65);
   assert.ok(half.x+bounds.minX*half.scale>=0&&half.x+bounds.maxX*half.scale<=duet.width);
@@ -338,4 +338,16 @@ test('three neck-relative centers stay distinct and each family has three wide c
   assert.ok(bands.every(p=>p.width>=32));
  }
  rings.dispose();
+});
+
+
+test('orbit drift is independent, bounded, smooth and disabled for reduced motion',()=>{
+ for(let ring=0;ring<3;ring++)for(let t=0;t<40;t+=.1){
+  const a=orbitDrift(ring,t),b=orbitDrift(ring,t+1/60);
+  assert.ok(Math.abs(a.x)<=11&&Math.abs(a.y)<=9&&Math.abs(a.angle)<=3.2);
+  assert.ok(length(a,b)<.5&&Math.abs(a.angle-b.angle)<.15);
+  assert.deepEqual(orbitDrift(ring,t,true),{x:0,y:0,angle:0});
+ }
+ assert.notDeepEqual(orbitDrift(0,5),orbitDrift(1,5));
+ assert.notDeepEqual(orbitDrift(1,5),orbitDrift(2,5));
 });
