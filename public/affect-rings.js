@@ -38,7 +38,7 @@ export function ellipseArcSites(rx,ry,count=64){
 export function buildAffectPaths(family,intensity,{phase=0,reducedMotion=false}={}){
  const base=sampleAffectStyle(family,intensity);
  // Wide ring bands keep the existing expression palette and edge character.
- const style={...base,width:32+base.width*.8},g={...base.geometry,angles:ORBIT_LAYOUT.map(o=>o.angle),radiusX:205,radiusY:62,offsetY:0},paths=[];
+ const style={...base,width:32+base.width*.8},g={...base.geometry,angles:ORBIT_LAYOUT.map(o=>o.angle),radiusX:260,radiusY:38,offsetY:0},paths=[];
  const breathing=!reducedMotion&&(family==='calm'||family==='joy')?1+Math.sin(phase*.72)*.012:1;
  const rx=g.radiusX*g.scale*breathing,ry=g.radiusY*g.scale*breathing,offset=g.offsetY||0;
  for(let ring=0;ring<g.angles.length;ring++){
@@ -120,8 +120,8 @@ export function affectRingPlacement(person,projection,viewport,bounds,now){
  // Lower arcs may leave a close camera crop, as in the user's sketch; never
  // compress the orbit vertically or move its centre toward the face to fit.
  const head=projection.box(person.faceBBox);
- const desiredWidth=chest.shoulderSpan?chest.shoulderSpan*2.3:head.width*2.7;
- const scale=Math.min(desiredWidth/410,(width-padding*2)/Math.max(1,2*Math.max(Math.abs(bounds.minX),Math.abs(bounds.maxX))));
+ const desiredWidth=chest.shoulderSpan?chest.shoulderSpan*2.65:head.width*3.1;
+ const scale=Math.min(desiredWidth/520,(width-padding*2)/Math.max(1,2*Math.max(Math.abs(bounds.minX),Math.abs(bounds.maxX))));
  if(!(scale>0))return null;
  return {...chest,scale};
 }
@@ -129,7 +129,7 @@ export function affectRingPlacement(person,projection,viewport,bounds,now){
 /** Decorative light uses time only; it never feeds expression statistics. */
 export function affectLightPhase(phase=0){
  const t=Number.isFinite(phase)?phase:0;
- return {breath:.86+.14*Math.sin(t*TAU/5.6),travel:t*.55};
+ return {breath:.625+.375*Math.sin(t*TAU/3.8),travel:t*.55};
 }
 const vertex=`attribute vec3 aColor;attribute float aAlpha;attribute vec2 aOrbit;attribute float aEdge;
 varying vec3 vColor;varying float vAlpha;varying vec2 vOrbit;varying float vEdge;
@@ -139,15 +139,16 @@ uniform float uBreath,uTravel;
 void main(){
  // A dense inner band, radial gaps and fine striations dissolve into a
  // broad translucent outer veil. Analytic shading adds no extra draw calls.
- float r=abs(vEdge);
+ float breathingEdge=vEdge/(.80+.20*uBreath);
+ float r=abs(breathingEdge);
  float veil=pow(max(0.,1.-r),1.6);
- float core=1.-smoothstep(.28,.57,abs(vEdge+.14));
- float gap=1.-.70*exp(-pow((vEdge-.34)/.055,2.));
- float fine=.84+.16*sin(vEdge*95.);
+ float core=1.-smoothstep(.28,.57,abs(breathingEdge+.14));
+ float gap=1.-.70*exp(-pow((breathingEdge-.34)/.055,2.));
+ float fine=.84+.16*sin(breathingEdge*95.);
  float edge=clamp((.15*veil+.72*core*fine)*gap,0.,1.)*(1.-smoothstep(.78,1.,r));
  float wave=.5+.5*dot(normalize(vOrbit),vec2(cos(uTravel),sin(uTravel)));
  float sheen=pow(clamp(wave,0.,1.),10.);
- vec3 lit=mix(vColor,vec3(1.),.025+.10*sheen);
+ vec3 lit=mix(vColor,vec3(1.),.025+.16*sheen+.10*uBreath);
  gl_FragColor=vec4(lit,vAlpha*uBreath*(.90+.10*sheen)*edge);
 #include <colorspace_fragment>
 }`;
@@ -169,7 +170,7 @@ export class AffectRings{
    const attribute=new THREE.BufferAttribute(array,size).setUsage(THREE.DynamicDrawUsage);
    this.geometry.setAttribute(name,attribute);this.frontGeometry.setAttribute(name,attribute);
   }
-  this.material=new THREE.ShaderMaterial({uniforms:{uBreath:{value:.86},uTravel:{value:0}},vertexShader:vertex,fragmentShader:fragment,transparent:true,side:THREE.DoubleSide,depthTest:false,depthWrite:false});
+  this.material=new THREE.ShaderMaterial({uniforms:{uBreath:{value:.625},uTravel:{value:0}},vertexShader:vertex,fragmentShader:fragment,transparent:true,side:THREE.DoubleSide,depthTest:false,depthWrite:false});
   this.mesh=new THREE.Mesh(this.geometry,this.material);this.mesh.name='Neck orbits · far side';this.mesh.renderOrder=order;this.mesh.frustumCulled=false;this.mesh.visible=false;parent.add(this.mesh);
   this.frontMesh=new THREE.Mesh(this.frontGeometry,this.material);this.frontMesh.name='Neck orbits · near side';this.frontMesh.renderOrder=frontOrder;this.frontMesh.frustumCulled=false;this.frontMesh.visible=false;parent.add(this.frontMesh);
   this.filter=createAffectVisualState();this.phase=0;this.lastTime=null;this.anchor=null;this.owner=undefined;this.count=0;this.backCount=0;this.frontCount=0;this.stats={visible:false,vertices:0,pathCount:0};
@@ -196,7 +197,10 @@ export class AffectRings{
    const ax=p.x-previous.x,ay=p.y-previous.y,bx=next.x-p.x,by=next.y-p.y,al=Math.hypot(ax,ay),bl=Math.hypot(bx,by);
    const n1=al>.0001?{x:-ay/al,y:ax/al}:{x:-by/(bl||1),y:bx/(bl||1)},n2=bl>.0001?{x:-by/bl,y:bx/bl}:n1;
    let nx=n1.x+n2.x,ny=n1.y+n2.y,length=Math.hypot(nx,ny);if(length<.001){nx=n2.x;ny=n2.y;length=1;}nx/=length;ny/=length;
-   const extension=Math.min(half*2.5,half/Math.max(.4,Math.abs(nx*n2.x+ny*n2.y))),color=gradient(path.palette,path.gradientStops,(p.x+220)/440);
+   // Foreshorten the band at the narrow ends of the flattened ellipse.
+   // This keeps a wide front arc without folding its inner edge at the tips.
+   const localHalf=half*(path.kind==='chevrons'?1:Math.min(1,Math.hypot(p.orbitY,p.orbitX*38/260)));
+   const extension=Math.min(localHalf*2.5,localHalf/Math.max(.4,Math.abs(nx*n2.x+ny*n2.y))),color=gradient(path.palette,path.gradientStops,(p.x+220)/440);
    const orbit=rotate({x:p.orbitX,y:p.orbitY},path.ring*.8);
    edges.push({left:{x:p.x+nx*extension,y:p.y+ny*extension},right:{x:p.x-nx*extension,y:p.y-ny*extension},z:p.z,orbitX:orbit.x,orbitY:orbit.y,color});
   }

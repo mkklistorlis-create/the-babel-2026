@@ -55,3 +55,10 @@ The second user sketch specifies shallow +22° / −17° loops and a steep −55
 Band width is 32 + 0.8 × the existing expression stroke width in reference units. An analytic fragment shader combines a dense inner band, narrow radial gap, fine striations, and translucent feathered edges. Existing breathing and traveling sheen remain. Tension retains its open chevron accents over a continuous broad band; surprise retains the integrated spiked edge. Front/back body occlusion, fixed geometry buffers and two draw calls are retained. No new model or postprocessing pass is added.
 
 19 orbit tests pass, including separated neck centers and continuous wide bands for all families. Production build and Chromium WebGL previews pass without page errors. The final session artwork, recognition coefficients and statistics were not edited.
+
+
+## R11.3 — flatter orbits and visible breathing
+
+Reference ellipse radii change from 205 × 62 to 260 × 38. Participant-relative reach increases from 2.3 to 2.65 shoulder spans (face fallback 2.7 to 3.1 widths). Neck centers and angles remain unchanged. Band thickness is foreshortened at the ellipse tips to prevent folding.
+
+Breathing now takes 3.8 seconds per cycle with an opacity multiplier from 0.25 to 1.0. The shader also changes band spread and highlight brightness. Paused/reduced-motion behavior remains. Verified all 19 orbit tests, production build and browser screenshots at bright/dim phases without page errors.

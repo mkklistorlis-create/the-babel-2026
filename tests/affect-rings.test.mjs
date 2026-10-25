@@ -28,7 +28,7 @@ test('calm, joy, surprise and sadness contain exactly three hollow orbit paths a
    assert.equal(path.closed,true);
    assert.ok(path.points.length>=100);
    assert.ok(path.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)));
-   assert.ok(path.points.every(p=>Math.hypot(p.x,p.y)>45),'orbit outline never enters its hollow center');
+   assert.ok(path.points.every(p=>Math.hypot(p.x-ORBIT_LAYOUT[path.ring].x,p.y-ORBIT_LAYOUT[path.ring].y)>30),'orbit outline never enters its hollow center');
    assert.ok(path.width>0&&path.opacity>0&&path.opacity<=1);
   }
  }
@@ -72,7 +72,7 @@ test('tension is three orbits of 64 open 90-degree chevrons with the measured sq
 });
 
 test('tension arrows follow the orbit tangent with both legs behind their apex',()=>{
- const {sites}=ellipseArcSites(205,62,64),angles=[22,-17,-55];
+ const {sites}=ellipseArcSites(260,38,64),angles=[22,-17,-55];
  for(const intensity of [0,.5,1])for(const [index,path] of buildAffectPaths('tension',intensity).filter(p=>p.kind==='chevrons').entries()){
   const angle=angles[path.ring]*Math.PI/180,local=sites[index%64].tangent;
   const t={x:local.x*Math.cos(angle)-local.y*Math.sin(angle),y:local.x*Math.sin(angle)+local.y*Math.cos(angle)};
@@ -93,11 +93,11 @@ function ellipseArcLength(from,to,rx,ry){
  return sum*h/3;
 }
 test('chevron sites follow equal ellipse arc lengths, including the closing interval',()=>{
- const {sites,total}=ellipseArcSites(205,62,64);
+ const {sites,total}=ellipseArcSites(260,38,64);
  assert.equal(sites.length,64);
- const arcs=sites.map((site,i)=>ellipseArcLength(site.angle,sites[i+1]?.angle??Math.PI*2,205,62));
+ const arcs=sites.map((site,i)=>ellipseArcLength(site.angle,sites[i+1]?.angle??Math.PI*2,260,38));
  for(const [i,site] of sites.entries()){
-  close(site.point.x**2/205**2+site.point.y**2/62**2,1);
+  close(site.point.x**2/260**2+site.point.y**2/38**2,1);
   close(Math.hypot(site.tangent.x,site.tangent.y),1);
   close(arcs[i],total/64,.001);
  }
@@ -246,8 +246,8 @@ test('chest anchor moves smoothly with the torso and never follows an isolated h
 });
 
 test('every family breathes gently at a stable expression; pause and reduced motion freeze its light',()=>{
- for(let phase=0;phase<100;phase+=.17){const light=affectLightPhase(phase);assert.ok(light.breath>=.72-1e-9&&light.breath<=1);}
- close(affectLightPhase(0).breath,affectLightPhase(5.6).breath);
+ for(let phase=0;phase<100;phase+=.17){const light=affectLightPhase(phase);assert.ok(light.breath>=.25-1e-9&&light.breath<=1);}
+ close(affectLightPhase(0).breath,affectLightPhase(3.8).breath);
  for(const family of AFFECT_FAMILIES){
   const rings=new AffectRings(new Group());render(rings,family,0);const start=rings.stats.breath;
   for(let i=1;i<=14;i++)render(rings,family,i*100);
