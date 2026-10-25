@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f3eb">
- <title>Between Us · 身体与表情</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/session-results.css"><link rel="stylesheet" href="/speech/speech-ui.css">
+ <title>Between Us · 身体与表情</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/session-results.css"><link rel="stylesheet" href="/speech/speech-ui.css"><link rel="stylesheet" href="/ui-layout.css">
 </head>
 <body>
  <canvas id="stage" aria-label="粒子马赛克人物、双手划线与头部 emoji 贴饰" tabindex="0"></canvas>
@@ -11,10 +11,8 @@
   <video id="remote-video" muted playsinline autoplay hidden></video>
   <p id="remote-placeholder">等待另一位加入</p><button id="remote-resume" hidden>播放对方画面</button>
   <span id="participant-remote"></span>
-  <section id="speech-remote" class="live-captions remote-captions" hidden aria-label="对方的实时翻译"><strong>对方说的话</strong><p id="speech-remote-meaning" class="caption-text" aria-live="polite" aria-atomic="true"></p><p id="speech-remote-source" class="caption-original"></p><p id="speech-remote-meta" class="caption-meta"></p></section>
  </section>
  <span id="participant-local" hidden></span>
- <section id="speech-captions" class="live-captions" hidden aria-label="我的实时字幕"><strong id="speech-local-label">我说的话</strong><p id="speech-source" class="caption-text" aria-live="polite" aria-atomic="true"></p><p id="speech-caption-state" class="caption-meta"></p></section>
  <section id="intro" class="intro">
   <p class="eyebrow">BETWEEN US / BODY STUDY 07</p>
   <h1>你。<span>我。</span><br>我们之间。</h1>
@@ -25,7 +23,6 @@
   <p id="boot-error" role="alert"></p>
  </section>
  <span id="mode-tag" hidden>动态演示 · 模拟画面</span>
- <div id="transport" hidden><button id="exit" title="Esc 返回并关闭摄像头">退出</button><button id="pause">暂停粒子</button><button id="room-open">双人联机</button><button id="debug-toggle">测试面板 D</button></div>
  <button id="room-badge" hidden aria-label="打开联机状态"></button>
  <section id="room-panel" hidden role="dialog" aria-modal="false" aria-labelledby="room-title">
   <div class="panel-heading"><strong id="room-title">一起进入画面</strong><button id="room-close" aria-label="关闭联机面板">×</button></div>
@@ -51,17 +48,26 @@
   <p class="note">D 测试面板 · 空格暂停粒子 · Esc 退出<br>多人出现时暂停个人追踪，确认单人后自动继续。<br>每台电脑仅追踪当前的一位参与者。</p>
  </aside>
  <details id="speech-panel">
-  <summary>实时字幕 · 麦克风设置</summary>
+  <summary>字幕与麦克风 <span aria-hidden="true">＋</span></summary>
+  <div class="speech-content">
+  <div class="panel-heading"><strong>语音设置</strong><button id="speech-close" aria-label="关闭语音设置">×</button></div>
   <p id="speech-selected-language"></p>
   <p id="speech-status" role="status">正在读取语音配置…</p>
 
   <div id="speech-code-row" hidden><label for="speech-code">语音访问码</label><input id="speech-code" type="password" autocomplete="off" maxlength="200" placeholder="由演示者提供"></div>
-  <button id="speech-start" disabled>开启麦克风</button><button id="speech-stop" disabled>停止语音</button>
+  <div class="speech-actions"><button id="speech-start" disabled>开启麦克风</button><button id="speech-stop" disabled>停止语音</button></div>
+  <details class="speech-help"><summary>语音处理与使用说明</summary>
   <p class="speech-note">开启后，音频及原文将发送至配置的语音和语义服务。双人联机时，原文与暂定、完整译文会共享给对方。对方看到自己所选语言的译文。原始声音不通过房间传输。</p>
   <p class="speech-note">每次最长约 4 分钟，可手动重新开启。语义表示说出的内容；暂定含义可能修正。</p>
-  <section><strong>本句含义</strong><p id="speech-meaning" class="speech-meaning"></p><p id="speech-meta" class="speech-note"></p></section>
+  </details>
+  <details class="speech-help"><summary>查看本句语义分析</summary><section><strong>本句含义</strong><p id="speech-meaning" class="speech-meaning"></p><p id="speech-meta" class="speech-note"></p></section></details>
+  </div>
  </details>
- <p id="status" role="status" hidden></p>
- <script src="/vendor/peerjs.min.js"></script><script type="module" src="/app.js"></script>
+ <div id="ui-dock">
+  <p id="status" role="status" hidden></p>
+  <div id="caption-deck" aria-label="实时字幕区"><section id="speech-captions" class="live-captions" hidden aria-label="我的实时字幕"><strong id="speech-local-label">我说的话</strong><p id="speech-source" class="caption-text" aria-live="polite" aria-atomic="true"></p><p id="speech-caption-state" class="caption-meta"></p></section><section id="speech-remote" class="live-captions remote-captions" hidden aria-label="对方的实时翻译"><strong>对方说的话</strong><p id="speech-remote-meaning" class="caption-text" aria-live="polite" aria-atomic="true"></p><p id="speech-remote-source" class="caption-original"></p><p id="speech-remote-meta" class="caption-meta"></p></section></div>
+  <div id="control-deck"><div id="transport" hidden><button id="exit" title="Esc 返回并关闭摄像头">退出</button><button id="pause">暂停粒子</button><button id="room-open">双人联机</button><button id="debug-toggle">调试 D</button></div></div>
+ </div>
+ <script src="/vendor/peerjs.min.js"></script><script type="module" src="/app.js"></script><script type="module" src="/ui-layout.js"></script>
 </body>
 </html>

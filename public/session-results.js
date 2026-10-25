@@ -326,7 +326,9 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
   <section class="session-timeline-section"><div class="session-section-heading"><div><p class="eyebrow">02 / FACIAL ACTIVITY</p><h3>表情波动</h3></div><button id="session-download-timeline-csv">导出曲线 CSV</button></div><div id="session-timeline-legend" class="session-legend"></div><p id="session-timeline-description" class="session-note"></p><div id="session-timeline" tabindex="0" aria-label="表情波动折线图"></div><p id="session-timeline-empty" class="session-note" hidden></p></section>
   <section class="session-art-section"><div class="session-section-heading"><div><p class="eyebrow">03 / A CONVERSATION PORTRAIT</p><h3>本轮的几何肖像</h3></div><button id="session-download-png">保存纯艺术 PNG ↗</button></div><p id="session-art-description" class="session-note"></p><div class="session-art-wrap"><canvas id="session-art" width="1600" height="1000" aria-label="本轮表情统计生成的纯色几何背景与 emoji 拼贴"></canvas><p id="session-art-empty" hidden>有了有效表情记录，作品就会在这里生成。</p></div></section>
   <footer class="session-footer"><p class="session-note">记录可见的面部动作。缺失时间单独统计；模拟画面会明确标记。<br>统计和导出在浏览器内完成，刷新页面后本轮记录会清除。</p><div><button id="session-download-csv">导出 CSV</button><button id="session-download-json">导出 JSON</button><button id="session-new-round">开始新一轮</button><button id="session-return">返回画面（未记录）</button></div></footer><p id="session-export-status" role="status"></p></div>`;
- document.body.append(dock,panel);
+ const controlDeck=document.getElementById('control-deck');
+ if(controlDeck)controlDeck.prepend(dock);else document.body.append(dock);
+ document.body.append(panel);
  const $=id=>document.getElementById(id);
  let state={phase:'idle',role:null,local:null,remote:null},metric='count',previousFocus=null,lastSignature='',lastDraw=0,drawTimer=null,shownSession=null,destroyed=false;
  const hasData=()=>Boolean(state.local||state.remote);

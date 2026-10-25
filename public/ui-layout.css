@@ -1,0 +1,80 @@
+/* A shared flow prevents independent fixed panels from occupying the same rows. */
+:root{--ui-dock-height:140px;--ui-gutter:20px;--ui-bottom:16px}
+#ui-dock{position:fixed;z-index:6;left:var(--ui-gutter);right:var(--ui-gutter);bottom:max(var(--ui-bottom),env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:12px;pointer-events:none}
+body:has(#intro:not([hidden])) #ui-dock,body:has(#intro:not([hidden])) #speech-panel{display:none}
+#ui-dock #status{position:static;transform:none;margin:0;max-width:min(720px,100%);padding:9px 14px;font-size:12px;line-height:1.5;border:1px solid #11110f22;background:#f3f3ebf5;max-height:4.5em;overflow:auto;pointer-events:auto}
+#caption-deck{width:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:end}
+#caption-deck:not(:has(.live-captions:not([hidden]))){display:none}
+#caption-deck .live-captions{position:static;inset:auto;transform:none;margin:0;justify-self:center;width:min(720px,100%);min-width:0;padding:12px 18px;background:#f3f3ebf2;border:1px solid #11110f30;box-shadow:0 4px 20px #11110f08}
+#caption-deck .live-captions strong{font-size:10px;letter-spacing:.07em;color:#696960}
+#caption-deck .caption-text{font-size:clamp(17px,1.7vw,23px);line-height:1.4;max-height:4.2em;margin-top:6px}
+#caption-deck .caption-original{max-height:3em;font-size:11px}
+#caption-deck .caption-meta{font-size:10px;line-height:1.5}
+body[data-room-role] #caption-deck{grid-template-columns:repeat(2,minmax(0,1fr))}
+body[data-room-role] #caption-deck .live-captions{width:100%;grid-row:1}
+body[data-room-role="A"] #speech-captions,body[data-room-role="B"] #speech-remote{grid-column:1}
+body[data-room-role="B"] #speech-captions,body[data-room-role="A"] #speech-remote{grid-column:2}
+#control-deck{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px 16px;max-width:100%;padding:10px 14px;border:1px solid #11110f44;background:#f3f3ebfa;box-shadow:0 4px 24px #11110f12;pointer-events:auto}
+#control-deck:not(:has(> :not([hidden]))){display:none}
+#control-deck #session-controls{position:static;transform:none;inset:auto;width:auto;max-width:none;padding:0;border:0;box-shadow:none;background:none;gap:12px;flex-wrap:wrap;justify-content:center}
+#session-controls #session-live-status{max-width:180px;max-height:3em;overflow:auto}
+#session-controls #session-live-clock{font-size:18px}
+#control-deck #transport{position:static;transform:none;inset:auto;opacity:1;max-width:100%;margin:0;padding:0 0 0 14px;border-left:1px solid #11110f28;background:none;gap:4px;justify-content:center;flex-wrap:wrap}
+#control-deck button{min-height:34px}
+#control-deck #transport button{padding:7px 10px;font-size:11px;border-color:transparent}
+#control-deck #transport button:hover{border-color:#11110f}
+/* A small trigger stays visible; the settings card opens below it. */
+#speech-panel,#speech-panel:not([open]){position:fixed;z-index:8;top:16px;right:20px;bottom:auto;width:auto;max-width:calc(100vw - 40px);max-height:none;padding:0;overflow:visible;background:none;border:0;box-shadow:none}
+#speech-panel>summary{display:flex;align-items:center;gap:24px;list-style:none;padding:11px 15px;background:#f3f3ebf5;border:1px solid #11110f44;font-size:12px;cursor:pointer}
+#speech-panel>summary::-webkit-details-marker{display:none}
+#speech-panel[open]>summary{background:#11110f;color:#f3f3eb}
+#speech-panel[open]>summary span{transform:rotate(45deg)}
+#speech-panel .speech-content{position:absolute;right:0;top:calc(100% + 10px);width:min(330px,calc(100vw - 40px));max-height:max(100px,calc(100dvh - var(--ui-dock-height) - 110px));overflow:auto;overscroll-behavior:contain;padding:18px;background:#f3f3eb;border:1px solid #11110f44;box-shadow:0 8px 32px #11110f18}
+#speech-panel .panel-heading{margin:0 0 12px;font-size:15px}
+#speech-panel .panel-heading button{border:0;font-size:24px;margin:0;padding:0 4px;line-height:1}
+#speech-panel #speech-selected-language{color:#696960;font-size:11px;margin-bottom:12px}
+#speech-panel #speech-status{padding:10px 12px;background:#11110f08;font-size:12px;line-height:1.65}
+#speech-panel .speech-actions{display:flex;gap:8px;margin:14px 0}
+#speech-panel .speech-actions button{flex:1;margin:0;padding:10px 6px;font-size:12px}
+#speech-panel #speech-start:not(:disabled){background:#d5ff00}
+#speech-panel .speech-help{border-top:1px solid #11110f22;padding-top:12px;margin-top:12px}
+#speech-panel .speech-help>summary{font-size:11px;color:#696960;letter-spacing:0}
+#speech-panel .speech-help section{border:0;margin:0;padding:8px 0 0}
+#speech-panel .speech-note{font-size:11px;line-height:1.7}
+#debug{z-index:8;top:70px;bottom:auto;max-height:max(100px,calc(100dvh - var(--ui-dock-height) - 104px));right:var(--ui-gutter)}
+#room-panel{z-index:9;max-height:calc(100dvh - 48px)}
+#room-badge{top:16px;left:20px;transform:none;max-width:calc(100vw - 240px)}
+body[data-room-role] #participant-local,body[data-room-role] #participant-remote{top:64px}
+body[data-room-role] #mode-tag{top:96px}
+@media(max-width:850px){
+ #session-controls #session-live-status{display:none}
+ #control-deck{gap:8px 12px;padding:8px 10px}
+}
+@media(max-width:600px){
+ :root{--ui-gutter:10px;--ui-bottom:10px}
+ #ui-dock{gap:8px}
+ #caption-deck{gap:10px}
+ #caption-deck .live-captions{padding:10px 12px}
+ #caption-deck .caption-text{font-size:16px;max-height:4.2em}
+ #control-deck{width:100%;flex-direction:column;align-items:stretch;gap:8px}
+ #control-deck #session-controls{justify-content:space-between;gap:8px}
+ #control-deck #transport{border-left:0;border-top:1px solid #11110f22;padding:6px 0 0}
+ #control-deck:not(:has(#session-controls:not([hidden]))) #transport{padding:0;border:0}
+ #session-controls>div:first-child{gap:8px}
+ #session-controls #session-live-clock{font-size:15px}
+ #session-controls button{font-size:10px;padding:7px 8px}
+ #speech-panel,#speech-panel:not([open]){top:12px;right:10px;max-width:calc(100vw - 20px)}
+ #speech-panel>summary{gap:14px;padding:9px 11px;font-size:11px}
+ #speech-panel .speech-content{width:min(330px,calc(100vw - 20px));padding:14px;max-height:max(100px,calc(100dvh - var(--ui-dock-height) - 100px))}
+ #room-badge{top:12px;left:10px;max-width:calc(100vw - 190px)}
+ #debug{top:64px;max-width:calc(100vw - 20px)}
+}
+@media(max-height:540px){
+ #ui-dock{gap:6px}
+ #caption-deck .live-captions{padding:7px 12px}
+ #caption-deck .caption-text{font-size:16px;max-height:2.8em}
+ #caption-deck .caption-original{max-height:1.5em}
+ #caption-deck .caption-meta{display:none}
+ #control-deck{padding:6px 10px}
+ #ui-dock #status{max-height:3em;padding:5px 10px}
+}
