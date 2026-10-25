@@ -43,12 +43,13 @@ export class RoomConnection{
  }
  _staleMeaning(map,body){
   if(body.type!=='meaning')return false;
-  const old=map.get(body.utteranceId);
+  const old=map.get(`${body.utteranceId}|${body.targetLanguage||''}`);
   return Boolean(old&&((old.final&&body.stage!=='final')||body.revision<old.revision||(body.revision===old.revision&&(old.final||body.stage!=='final'))));
  }
  _rememberMeaning(map,body){
   if(body.type!=='meaning')return;
-  map.delete(body.utteranceId);map.set(body.utteranceId,{revision:body.revision,final:body.stage==='final'});
+  const key=`${body.utteranceId}|${body.targetLanguage||''}`;
+  map.delete(key);map.set(key,{revision:body.revision,final:body.stage==='final'});
   if(map.size>128)map.delete(map.keys().next().value);
  }
  _emit(values={}){Object.assign(this.state,values);this.onState(this.diagnostics);}

@@ -5,7 +5,7 @@ const languageNames={auto:'自动',zh:'中文',en:'English',ja:'日本語',es:'E
 const intents={statement:'陈述',question:'提问',request:'请求',evaluate:'评价',agree:'赞同',disagree:'分歧',greeting:'问候',other:'其他'};
 export const CAPTION_FINAL_HOLD_MS=1300;
 
-/** Entry starts speech; the existing toolbar only offers stop/retry. */
+/** Language is local to each device; outgoing translations target the listener. */
 export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=createSemanticPlugin(),platform=globalThis}={}){
  const $=id=>platform.document.getElementById('speech-'+id);
  const turns=new TurnView(),remoteTurns=new TurnView();
@@ -16,7 +16,7 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
  $('language').value=language;
  const target=()=>supported.includes(connection.remoteLanguage)?connection.remoteLanguage:language;
  const updateTarget=()=>{if(plugin.setTargetLanguage)plugin.setTargetLanguage(target());else plugin.targetLanguage=target();};
- $('language').onchange=()=>{if(active||connecting)return;$('language').value=language=supported.includes($('language').value)?$('language').value:'zh';try{platform.localStorage?.setItem('babel-language',language);}catch{}clearRemote();updateTarget();controls();};
+ $('language').onchange=()=>changeLanguage($('language').value);
  let config=null,active=false,connecting=false,destroyed=false,operation=0,latest=null,remote=null;
  let resetTimer=null;
  let localCaptionTimer=null,remoteCaptionTimer=null,expiredLocalTurn=null;
@@ -32,13 +32,14 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
  const readySource=()=>{const d=getDiagnostics?.()||{};return d.mode==='live';};
  function controls(){
   $('start').disabled=config?.enabled===false||active||connecting||!readySource();
-  $('stop').disabled=!active&&!connecting;$('language').disabled=active||connecting;$('start').hidden=active||connecting;$('stop').hidden=!active&&!connecting;
+  $('stop').disabled=!active&&!connecting;$('language').disabled=destroyed;$('start').hidden=active||connecting;$('stop').hidden=!active&&!connecting;
   $('remote').hidden=connection.status!=='connected';
   const d=getDiagnostics?.()||{};
   $('captions').hidden=d.mode==='idle'||d.mode==='demo';
   if(active)$('caption-state').textContent=connecting?'正在连接麦克风…':'';
   $('captions').lang=language;$('remote').lang=language;
   $('local-label').textContent=connection.role?`${connection.role} · 我说的话`:'我说的话';
+  emit('between-us:language-state',{language,remoteLanguage:connection.status==='connected'?connection.remoteLanguage:null,connected:connection.status==='connected'});
  }
  function cancelReset(){if(resetTimer!==null){platform.clearTimeout(resetTimer);resetTimer=null;}}
  function shareReset(token){
@@ -64,6 +65,19 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
   if(wasActive&&notify&&connection.status==='connected')shareReset(operation);
   if(wasActive)emit('between-us:meaning-reset',{reason:'session-stopped'});
   $('caption-state').textContent=message;controls();
+ }
+ async function changeLanguage(value){
+  if(destroyed)return;
+  if(!supported.includes(value)){$('language').value=language;return;}
+  if(value===language){controls();return;}
+  const resume=active||connecting;
+  // Recognition language is fixed for a provider stream. Replace only that
+  // stream, retaining camera, room, session timing, and the listener's target.
+  if(resume)stopped('');else clearLocal();
+  language=value;$('language').value=language;plugin.language=language;
+  try{platform.localStorage?.setItem('babel-language',language);}catch{}
+  clearRemote();updateTarget();controls();
+  if(resume)await start();
  }
  async function start(){
   if(destroyed||config?.enabled===false||active||connecting)return;
@@ -161,8 +175,8 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
  }).catch(()=>{if(!destroyed){$('caption-state').textContent='语音服务暂时不可用，摄像头与艺术画面可正常使用。';controls();}});
  controls();
  return {
-  get language(){return language;},start,receiveMeaning,setConnection,stop:stopped,checkSource(){if(active)currentSource();controls();},
-  get diagnostics(){return {active,connecting,configured:Boolean(config?.enabled),language:plugin.language,latest,remote};},
+  get language(){return language;},changeLanguage,start,receiveMeaning,setConnection,stop:stopped,checkSource(){if(active)currentSource();controls();},
+  get diagnostics(){return {active,connecting,configured:Boolean(config?.enabled),language,targetLanguage:target(),remoteLanguage:connection.remoteLanguage,latest,remote};},
   destroy(){if(destroyed)return;stopped('',{clearPeer:true});destroyed=true;operation++;cancelReset();abort.abort();platform.clearInterval(timer);for(const [name,fn] of listeners)plugin.removeEventListener(name,fn);plugin.destroy();plugin.accessCode='';$('start').onclick=null;$('stop').onclick=null;$('language').onchange=null;}
  };
 }

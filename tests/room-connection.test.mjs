@@ -242,3 +242,13 @@ test('disconnect clears meaning transport and stale connections cannot affect a 
   c.leave();assert.equal(c.sendMeaning(meaning()),false);
  }finally{c?.leave();p.cleanup();}
 });
+
+
+test('translation deduplication is scoped to the listener language after a language switch',async()=>{
+ const p=await paired();try{
+  assert.equal(p.a.sendMeaning(meaning({targetLanguage:'en',translation:'Hello'})),true);await flush();
+  assert.equal(p.a.sendMeaning(meaning({targetLanguage:'ja',translation:'こんにちは'})),true);await flush();
+  assert.equal(p.a.sendMeaning(meaning({targetLanguage:'ja',translation:'duplicate'})),false);
+  assert.deepEqual(p.meaningsB.map(x=>x.targetLanguage),['en','ja']);
+ }finally{p.cleanup();}
+});

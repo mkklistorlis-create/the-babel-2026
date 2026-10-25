@@ -1,0 +1,18 @@
+/* The same independent preference is available before and during a session. */
+#live-language-control{position:fixed;z-index:7;top:16px;right:20px;background:#f5f4ec;border:1px solid #171715;padding:9px 12px;color:#171715;font-family:'Babel Inter',Arial,sans-serif;max-width:calc(50vw - 40px)}
+#live-language-control label{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:11px;font-weight:700}
+#live-language-control select{border:0;background:transparent;color:inherit;font:700 13px 'Babel Inter',Arial,sans-serif;min-width:96px;padding:3px 0;max-width:100%}
+#live-language-control [data-peer-language]{display:block;font-size:10px;color:#696960;margin-top:5px;overflow-wrap:anywhere}
+body:has(#intro:not([hidden])) #live-language-control,body:has(#room-panel:not([hidden])) #live-language-control,body:has(#session-results:not([hidden])) #live-language-control{display:none}
+body[data-room-role=B] #live-language-control{right:20px}
+body[data-room-role=A] #live-language-control{right:calc(50vw + 20px)}
+body[data-room-role] #room-badge{max-width:calc(50vw - 240px)}
+body[data-room-role=B] #room-badge{left:calc(50vw + 20px)}
+#room-panel .room-language-row{margin:0 0 16px;display:flex;align-items:center;gap:22px}
+#room-panel .room-language-row label{margin:0;display:flex;align-items:center;justify-content:space-between;gap:24px;border:1px solid #171715;padding:9px 14px;min-width:300px;font-size:11px;font-weight:700}
+#room-panel #room-language{width:auto;max-width:170px;border:0;padding:3px 0;background:transparent;font-size:14px;font-weight:700}
+#room-panel .room-language-row p{font-size:11px;line-height:1.5;margin:0;color:#696960;max-width:360px}
+#room-panel .room-subtitle{margin-bottom:16px}
+#room-panel #room-source-row{min-height:40px;margin-bottom:18px}
+#room-panel #room-source{padding:6px 0}
+#live-language-control select:focus-visible,#room-language:focus-visible{outline:2px solid #171715;outline-offset:3px}

@@ -9,6 +9,7 @@
  <link rel="stylesheet" href="/intro.css">
  <link rel="stylesheet" href="/live-controls.css">
  <link rel="stylesheet" href="/panels.css">
+ <link rel="stylesheet" href="/language-controls.css">
 </head>
 <body>
  <canvas id="stage" aria-label="粒子马赛克人物、双手划线与头部 emoji 贴饰" tabindex="0"></canvas>
@@ -19,6 +20,7 @@
   <span id="participant-remote"></span>
  </section>
  <span id="participant-local" hidden></span>
+ <div id="live-language-control" lang="en"><label for="live-language">I speak<select id="live-language" data-language-select><option value="en">English</option><option value="zh">中文</option><option value="ja">日本語</option><option value="es">Español</option></select></label><span data-peer-language hidden></span></div>
  <section id="intro" class="intro" lang="en" aria-label="The Babel welcome">
   <div class="intro-content">
    <svg class="babel-brand" viewBox="0 0 760 230" role="img" aria-label="The Babel">
@@ -49,6 +51,7 @@
    </svg><button id="room-close" aria-label="Close connection panel">×</button></div>
    <h2 id="room-title">CONNECT WITH SOMEONE.</h2>
    <p class="room-subtitle">Two computers. One camera each. Create a room and share the invite link.</p>
+   <div class="room-language-row"><label for="room-language">YOUR LANGUAGE<select id="room-language" data-language-select><option value="en">English</option><option value="zh">中文</option><option value="ja">日本語</option><option value="es">Español</option></select></label><p>Speak this language and read your partner’s words in it. Each person chooses independently.</p></div>
    <label id="room-source-row">CAMERA SOURCE<select id="room-source"><option value="live">My camera</option></select></label>
    <div class="room-columns"><section><p class="panel-kicker">01 / START A ROOM</p><h3>Invite someone in.</h3><p>Create a room, then send them your invite link.</p><button id="room-create" class="primary">Create room ↗</button>
     <div id="room-invite-section" hidden><label for="room-invite">YOUR INVITE LINK</label><div class="room-invite-row"><input id="room-invite" readonly aria-label="Your invite link"><button id="room-copy">Copy link ↗</button></div></div>
