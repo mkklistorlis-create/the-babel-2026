@@ -46,3 +46,12 @@ Each computer renders its own participant's rings into the existing artwork canv
 The October 25 sketch replaces the orbit composition with one horizontal and two ±42° diagonal loops. All five expression families retain their palette, opacity, breathing and edge treatment on the same wide orbital frame; sadness also uses this common frame. Stroke widths are multiplied by 1.8. Overall size follows shoulder span (2.3×) or face width (2.7× fallback), limited by pane width. Lower arcs can extend outside a close camera crop. Chest anchoring and front/back body occlusion remain. Final conversation artwork and recognition coefficients are unchanged.
 
 Validation: 18 orbit tests pass, production build succeeds, Chromium WebGL preview inspected with no page errors. Real webcam positioning remains a hands-on check.
+
+
+## R11.2 — separated neck centers and planetary bands
+
+The second user sketch specifies shallow +22° / −17° loops and a steep −55° loop. Their reference-space centers are (−8,−5), (−23,+9), and (+13,−11), scaled with the participant. The base anchor is now 0.16 shoulder spans above the shoulder midpoint; face-only fallback is 0.08 face heights below the face box. Shoulder tracking avoids moving the artwork with an isolated head turn.
+
+Band width is 32 + 0.8 × the existing expression stroke width in reference units. An analytic fragment shader combines a dense inner band, narrow radial gap, fine striations, and translucent feathered edges. Existing breathing and traveling sheen remain. Tension retains its open chevron accents over a continuous broad band; surprise retains the integrated spiked edge. Front/back body occlusion, fixed geometry buffers and two draw calls are retained. No new model or postprocessing pass is added.
+
+19 orbit tests pass, including separated neck centers and continuous wide bands for all families. Production build and Chromium WebGL previews pass without page errors. The final session artwork, recognition coefficients and statistics were not edited.

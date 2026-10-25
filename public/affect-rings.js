@@ -1,4 +1,4 @@
-/** Figma 134:11, three hollow, tilted orbits around the tracked chest.
+/** Figma 134:11, three hollow, tilted orbits around three offset neck anchors.
  * The visual families describe an artistic mapping of facial movements, not
  * a psychological diagnosis. No extra camera, speech or inference pipeline. */
 import * as THREE from './vendor/three.module.js';
@@ -10,6 +10,12 @@ const finite=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
 const rotate=(p,angle)=>({x:p.x*Math.cos(angle)-p.y*Math.sin(angle),y:p.x*Math.sin(angle)+p.y*Math.cos(angle)});
 const ellipse=(rx,ry,t)=>({x:rx*Math.cos(t),y:ry*Math.sin(t)});
 const paletteCache=new Map(),arcCache=new Map();
+// Angles and small centre offsets taken from the user's second sketch.
+export const ORBIT_LAYOUT=Object.freeze([
+ Object.freeze({angle:22,x:-8,y:-5}),
+ Object.freeze({angle:-17,x:-23,y:9}),
+ Object.freeze({angle:-55,x:13,y:-11}),
+]);
 
 /** Numerical inverse arc-length lookup: chevrons are equally spaced along an
  * ellipse, rather than bunched at its narrow ends by equal-angle sampling. */
@@ -31,25 +37,26 @@ export function ellipseArcSites(rx,ry,count=64){
  * loops: its spikes belong to the orbit edge, with no central disk or fill. */
 export function buildAffectPaths(family,intensity,{phase=0,reducedMotion=false}={}){
  const base=sampleAffectStyle(family,intensity);
- // User sketch: a wide horizontal orbit plus two diagonals, all around the
- // same chest centre. Keep expression textures/palettes on this shared frame.
- const style={...base,width:base.width*1.8},g={...base.geometry,angles:[0,-42,42],radiusX:205,radiusY:78,offsetY:0},paths=[];
+ // Wide ring bands keep the existing expression palette and edge character.
+ const style={...base,width:32+base.width*.8},g={...base.geometry,angles:ORBIT_LAYOUT.map(o=>o.angle),radiusX:205,radiusY:62,offsetY:0},paths=[];
  const breathing=!reducedMotion&&(family==='calm'||family==='joy')?1+Math.sin(phase*.72)*.012:1;
  const rx=g.radiusX*g.scale*breathing,ry=g.radiusY*g.scale*breathing,offset=g.offsetY||0;
  for(let ring=0;ring<g.angles.length;ring++){
-  const angle=g.angles[ring]*DEG,depthRadius=Math.sqrt(Math.abs(rx*rx-ry*ry));
+  const center=ORBIT_LAYOUT[ring],angle=g.angles[ring]*DEG,depthRadius=Math.sqrt(Math.abs(rx*rx-ry*ry));
   // Lift the reference ellipse into an inclined orbital plane. Its near half
   // is drawn in front of the torso; its far half is occluded by the torso.
-  const transform=p=>{const q=rotate(p,angle);return {x:q.x,y:q.y+offset,
+  const transform=p=>{const q=rotate(p,angle);return {x:q.x+center.x,y:q.y+offset+center.y,
    z:(rx>=ry?p.y/ry:p.x/rx)*depthRadius,orbitX:p.x/rx,orbitY:p.y/ry};};
   if(g.kind==='chevrons'){
+   const bandPoints=Array.from({length:192},(_,i)=>transform(ellipse(rx,ry,i/192*TAU)));
+   paths.push({...style,points:bandPoints,closed:true,ring,family,kind:'band'});
    const half=g.chevronLeg/Math.SQRT2,arc=ellipseArcSites(rx,ry,g.chevronCount);
    for(const site of arc.sites){
     const c=site.point,t=site.tangent,n={x:t.y,y:-t.x};
     // The open arrow follows the orbit tangent. A radial V would span 16 px
     // along a roughly 14 px arc gap and merge into an unintended toothed ring.
     const points=[{x:c.x-t.x*half+n.x*half,y:c.y-t.y*half+n.y*half},c,{x:c.x-t.x*half-n.x*half,y:c.y-t.y*half-n.y*half}].map(transform);
-    paths.push({points,closed:false,ring,family,kind:g.kind,arcDistance:site.distance,...style});
+    paths.push({points,closed:false,ring,family,kind:g.kind,arcDistance:site.distance,...style,width:base.width*1.8});
    }
   }else if(g.kind==='spiked'){
    const points=[],period=TAU/g.spikeCount,shoulder=.044;
@@ -80,9 +87,9 @@ export function affectBounds(paths){
 }
 
 const posePoint=p=>finite(p)&&Number.isFinite(p.visibility)&&p.visibility>=.55&&(!Number.isFinite(p.presence)||p.presence>=.55);
-/** Reuse the already measured torso. Missing hips do not turn the accessory
- * back into a head halo; the shoulder axis still supplies a chest estimate. */
-export function affectChestAnchor(person,projection,now){
+/** Use the shoulder axis to estimate the neck; face-only framing falls back
+ * just below the chin. Reuse existing landmarks, without another model. */
+export function affectNeckAnchor(person,projection,now){
  if(!person||!projection)return null;
  const points=person.landmarks||[],left=points[11],right=points[12];
  const observed=person.poseObservedAt??person.faceObservedAt;
@@ -91,33 +98,30 @@ export function affectChestAnchor(person,projection,now){
   const a=projection.point(left.x,left.y),b=projection.point(right.x,right.y),sx=(a.x+b.x)/2,sy=(a.y+b.y)/2;
   const dx=b.x-a.x,dy=b.y-a.y,span=Math.hypot(dx,dy);
   if(span>=8){
-   if(posePoint(points[23])&&posePoint(points[24])){
-    const h=projection.point((points[23].x+points[24].x)/2,(points[23].y+points[24].y)/2);
-    if(h.y-sy>span*.18&&Math.hypot(h.x-sx,h.y-sy)<projection.height*1.8)
-     return {x:sx+(h.x-sx)*.28,y:sy+(h.y-sy)*.28,kind:'torso',shoulderSpan:span};
-   }
    let nx=-dy/span,ny=dx/span;if(ny<0){nx=-nx;ny=-ny;}
-   return {x:sx+nx*span*.38,y:sy+ny*span*.38,kind:'shoulders',shoulderSpan:span};
+   return {x:sx-nx*span*.16,y:sy-ny*span*.16,kind:'neck-shoulders',shoulderSpan:span};
   }
  }
  if(!finite(person.faceCenter)||!person.faceBBox)return null;
  const face=projection.point(person.faceCenter.x,person.faceCenter.y),head=projection.box(person.faceBBox);
- return {x:face.x,y:head.y+head.height*1.75,kind:'face-estimate',shoulderSpan:null};
+ return {x:face.x,y:head.y+head.height*1.08,kind:'neck-face-estimate',shoulderSpan:null};
 }
+// Compatibility for integrations that imported the original anchor helper.
+export const affectChestAnchor=affectNeckAnchor;
 
 /** Preserve the anatomical centre even near a crop edge. Fitting the whole
  * drawing by moving its centre upward produced the old behind-head halo. */
 export function affectRingPlacement(person,projection,viewport,bounds,now){
  if(!finite(person?.faceCenter)||!person.faceBBox||!projection||!bounds)return null;
  const width=viewport.width,height=viewport.height;if(!(width>0&&height>0))return null;
- const chest=affectChestAnchor(person,projection,now);if(!chest)return null;
+ const chest=affectNeckAnchor(person,projection,now);if(!chest)return null;
  const padding=Math.min(16,width*.03,height*.03);
  // Size against the participant, with enough reach beyond both shoulders.
  // Lower arcs may leave a close camera crop, as in the user's sketch; never
  // compress the orbit vertically or move its centre toward the face to fit.
  const head=projection.box(person.faceBBox);
  const desiredWidth=chest.shoulderSpan?chest.shoulderSpan*2.3:head.width*2.7;
- const scale=Math.min(desiredWidth/410,(width-padding*2)/Math.max(1,bounds.width));
+ const scale=Math.min(desiredWidth/410,(width-padding*2)/Math.max(1,2*Math.max(Math.abs(bounds.minX),Math.abs(bounds.maxX))));
  if(!(scale>0))return null;
  return {...chest,scale};
 }
@@ -133,7 +137,14 @@ void main(){vColor=aColor;vAlpha=aAlpha;vOrbit=aOrbit;vEdge=aEdge;gl_Position=pr
 const fragment=`varying vec3 vColor;varying float vAlpha;varying vec2 vOrbit;varying float vEdge;
 uniform float uBreath,uTravel;
 void main(){
- float edge=1.-smoothstep(.72,1.,abs(vEdge));
+ // A dense inner band, radial gaps and fine striations dissolve into a
+ // broad translucent outer veil. Analytic shading adds no extra draw calls.
+ float r=abs(vEdge);
+ float veil=pow(max(0.,1.-r),1.6);
+ float core=1.-smoothstep(.28,.57,abs(vEdge+.14));
+ float gap=1.-.70*exp(-pow((vEdge-.34)/.055,2.));
+ float fine=.84+.16*sin(vEdge*95.);
+ float edge=clamp((.15*veil+.72*core*fine)*gap,0.,1.)*(1.-smoothstep(.78,1.,r));
  float wave=.5+.5*dot(normalize(vOrbit),vec2(cos(uTravel),sin(uTravel)));
  float sheen=pow(clamp(wave,0.,1.),10.);
  vec3 lit=mix(vColor,vec3(1.),.025+.10*sheen);
@@ -159,8 +170,8 @@ export class AffectRings{
    this.geometry.setAttribute(name,attribute);this.frontGeometry.setAttribute(name,attribute);
   }
   this.material=new THREE.ShaderMaterial({uniforms:{uBreath:{value:.86},uTravel:{value:0}},vertexShader:vertex,fragmentShader:fragment,transparent:true,side:THREE.DoubleSide,depthTest:false,depthWrite:false});
-  this.mesh=new THREE.Mesh(this.geometry,this.material);this.mesh.name='Chest orbits · far side';this.mesh.renderOrder=order;this.mesh.frustumCulled=false;this.mesh.visible=false;parent.add(this.mesh);
-  this.frontMesh=new THREE.Mesh(this.frontGeometry,this.material);this.frontMesh.name='Chest orbits · near side';this.frontMesh.renderOrder=frontOrder;this.frontMesh.frustumCulled=false;this.frontMesh.visible=false;parent.add(this.frontMesh);
+  this.mesh=new THREE.Mesh(this.geometry,this.material);this.mesh.name='Neck orbits · far side';this.mesh.renderOrder=order;this.mesh.frustumCulled=false;this.mesh.visible=false;parent.add(this.mesh);
+  this.frontMesh=new THREE.Mesh(this.frontGeometry,this.material);this.frontMesh.name='Neck orbits · near side';this.frontMesh.renderOrder=frontOrder;this.frontMesh.frustumCulled=false;this.frontMesh.visible=false;parent.add(this.frontMesh);
   this.filter=createAffectVisualState();this.phase=0;this.lastTime=null;this.anchor=null;this.owner=undefined;this.count=0;this.backCount=0;this.frontCount=0;this.stats={visible:false,vertices:0,pathCount:0};
  }
  _hide(){this.count=0;this.backCount=0;this.frontCount=0;this.geometry.setDrawRange(0,0);this.frontGeometry.setDrawRange(this.capacity,0);this.mesh.visible=false;this.frontMesh.visible=false;this.stats={visible:false,vertices:0,pathCount:0};}
@@ -228,7 +239,7 @@ export class AffectRings{
   const light=affectLightPhase(this.phase);this.material.uniforms.uBreath.value=light.breath;this.material.uniforms.uTravel.value=light.travel;
   this.geometry.setDrawRange(0,this.backCount);this.frontGeometry.setDrawRange(this.capacity-this.frontCount,this.frontCount);this.mesh.visible=this.backCount>0;this.frontMesh.visible=this.frontCount>0;
   this.stats={visible:this.count>0,family:state.family,intensity:state.intensity,vertices:this.count,backVertices:this.backCount,frontVertices:this.frontCount,pathCount:paths.length,scale:this.anchor.scale,
-   anchor:{x:this.anchor.x,y:this.anchor.y,kind:this.anchor.kind},breath:light.breath,activeFamilies:AFFECT_FAMILIES.filter(key=>state.weights[key]>.001)};
+   anchor:{x:this.anchor.x,y:this.anchor.y,kind:this.anchor.kind},centers:ORBIT_LAYOUT.map(o=>({x:this.anchor.x+o.x*this.anchor.scale,y:this.anchor.y+o.y*this.anchor.scale,angle:o.angle})),breath:light.breath,activeFamilies:AFFECT_FAMILIES.filter(key=>state.weights[key]>.001)};
   return this.stats;
  }
  dispose(){this.clear();this.mesh.removeFromParent();this.frontMesh.removeFromParent();this.geometry.dispose();this.frontGeometry.dispose();this.material.dispose();}

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Group} from '../public/vendor/three.module.js';
 import {AFFECT_FAMILIES} from '../public/affect-visual-state.js';
-import {AffectRings,buildAffectPaths,ellipseArcSites,affectBounds,affectRingPlacement,affectChestAnchor,affectLightPhase} from '../public/affect-rings.js';
+import {AffectRings,buildAffectPaths,ellipseArcSites,affectBounds,affectRingPlacement,affectChestAnchor,affectLightPhase,ORBIT_LAYOUT} from '../public/affect-rings.js';
 import {cameraProjection} from '../public/duet-canvas.js';
 
 const ids={calm:'neutral',joy:'smile',surprise:'open-mouth',tension:'brow-furrow',sadness:'mouth-frown'};
@@ -57,7 +57,7 @@ test('each surprise orbit has twelve integral outward spikes and no separate ray
 
 test('tension is three orbits of 64 open 90-degree chevrons with the measured sqrt(128) legs',()=>{
  for(const intensity of [0,.5,1]){
-  const paths=buildAffectPaths('tension',intensity);
+  const paths=buildAffectPaths('tension',intensity).filter(p=>p.kind==='chevrons');
   assert.equal(paths.length,3*64);
   for(let ring=0;ring<3;ring++)assert.equal(paths.filter(p=>p.ring===ring).length,64);
   for(const path of paths){
@@ -72,8 +72,8 @@ test('tension is three orbits of 64 open 90-degree chevrons with the measured sq
 });
 
 test('tension arrows follow the orbit tangent with both legs behind their apex',()=>{
- const {sites}=ellipseArcSites(205,78,64),angles=[0,-42,42];
- for(const intensity of [0,.5,1])for(const [index,path] of buildAffectPaths('tension',intensity).entries()){
+ const {sites}=ellipseArcSites(205,62,64),angles=[22,-17,-55];
+ for(const intensity of [0,.5,1])for(const [index,path] of buildAffectPaths('tension',intensity).filter(p=>p.kind==='chevrons').entries()){
   const angle=angles[path.ring]*Math.PI/180,local=sites[index%64].tangent;
   const t={x:local.x*Math.cos(angle)-local.y*Math.sin(angle),y:local.x*Math.sin(angle)+local.y*Math.cos(angle)};
   const n={x:t.y,y:-t.x},[a,c,b]=path.points;
@@ -93,20 +93,20 @@ function ellipseArcLength(from,to,rx,ry){
  return sum*h/3;
 }
 test('chevron sites follow equal ellipse arc lengths, including the closing interval',()=>{
- const {sites,total}=ellipseArcSites(205,78,64);
+ const {sites,total}=ellipseArcSites(205,62,64);
  assert.equal(sites.length,64);
- const arcs=sites.map((site,i)=>ellipseArcLength(site.angle,sites[i+1]?.angle??Math.PI*2,205,78));
+ const arcs=sites.map((site,i)=>ellipseArcLength(site.angle,sites[i+1]?.angle??Math.PI*2,205,62));
  for(const [i,site] of sites.entries()){
-  close(site.point.x**2/205**2+site.point.y**2/78**2,1);
+  close(site.point.x**2/205**2+site.point.y**2/62**2,1);
   close(Math.hypot(site.tangent.x,site.tangent.y),1);
   close(arcs[i],total/64,.001);
  }
  assert.ok(Math.abs(sites[1].angle-sites[0].angle-(sites[17].angle-sites[16].angle))>.05,'equal angular spacing would bunch the chevrons');
- const centers=buildAffectPaths('tension',.5).filter(p=>p.ring===0).map(p=>p.points[1]);
- for(let i=0;i<64;i++){close(centers[i].x,sites[i].point.x);close(centers[i].y,sites[i].point.y);}
+ const centers=buildAffectPaths('tension',.5).filter(p=>p.ring===0&&p.kind==='chevrons').map(p=>p.points[1]);
+ for(let i=0;i<64;i++){const angle=22*Math.PI/180;close(centers[i].x,sites[i].point.x*Math.cos(angle)-sites[i].point.y*Math.sin(angle)-8);close(centers[i].y,sites[i].point.x*Math.sin(angle)+sites[i].point.y*Math.cos(angle)-5);}
 });
 
-test('placement retains the lower chest estimate at crop edges rather than moving it up to fit',()=>{
+test('placement retains the neck estimate at crop edges rather than moving it up to fit',()=>{
  for(const viewport of [reference,{width:390,height:844},{width:180,height:140},{width:1280,height:240}]){
   for(const family of AFFECT_FAMILIES){
    const bounds=affectBounds(buildAffectPaths(family,1,{reducedMotion:true}));
@@ -114,8 +114,8 @@ test('placement retains the lower chest estimate at crop edges rather than movin
     const placement=affectRingPlacement(face(0,x,y),projection(viewport),viewport,bounds);
     assert.ok(placement&&placement.scale>0);
     const p=projection(viewport),head=p.box(face(0,x,y).faceBBox),center=p.point(x,y);
-    close(placement.x,center.x);close(placement.y,head.y+head.height*1.75);
-    assert.equal(placement.kind,'face-estimate');
+    close(placement.x,center.x);close(placement.y,head.y+head.height*1.08);
+    assert.equal(placement.kind,'neck-face-estimate');
     assert.ok(bounds.width*placement.scale<=viewport.width);
 
    }
@@ -128,21 +128,21 @@ test('placement retains the lower chest estimate at crop edges rather than movin
  assert.equal(affectRingPlacement(face(0),projection(reference),{width:0,height:430},affectBounds(buildAffectPaths('calm',1))),null);
 });
 
-test('measured chest follows shoulders and torso independently of head position',()=>{
+test('neck anchor follows shoulders independently of head position and hip visibility',()=>{
  const p=cameraProjection(1000,1000,1000,1000),person=torso(100),center=affectChestAnchor(person,p,100);
- close(center.x,500);close(center.y,562);assert.equal(center.kind,'torso');
+ close(center.x,500);close(center.y,402);assert.equal(center.kind,'neck-shoulders');
  const turning={...person,faceCenter:{x:.18,y:.12},faceBBox:{x:.11,y:.03,width:.14,height:.18}};
  assert.deepEqual(affectChestAnchor(turning,p,100),center);
  // Shoulder-only input locates the chest below the shoulder line even when
  // sitting at a desk with the hip landmarks outside the camera.
  person.landmarks[23].visibility=person.landmarks[24].visibility=.1;
  const partial=affectChestAnchor(person,p,100);
- assert.equal(partial.kind,'shoulders');close(partial.x,500);close(partial.y,564);
+ assert.equal(partial.kind,'neck-shoulders');close(partial.x,500);close(partial.y,402);
  // A low-quality or expired pose cannot pin the artwork to a stale torso.
  person.landmarks[11].visibility=.2;
- assert.equal(affectChestAnchor(person,p,100).kind,'face-estimate');
- assert.equal(affectChestAnchor(torso(0),p,801).kind,'face-estimate');
- assert.equal(affectChestAnchor({...torso(100),rawSource:'face-landmarks'},p,100).kind,'face-estimate');
+ assert.equal(affectChestAnchor(person,p,100).kind,'neck-face-estimate');
+ assert.equal(affectChestAnchor(torso(0),p,801).kind,'neck-face-estimate');
+ assert.equal(affectChestAnchor({...torso(100),rawSource:'face-landmarks'},p,100).kind,'neck-face-estimate');
 });
 
 test('three tilted orbital planes contain near and far depths with continuous crossings',()=>{
@@ -162,7 +162,7 @@ test('splitting a 1440 px stage into two 720 px panes retains ring presence at t
   const bounds=affectBounds(buildAffectPaths(family,.65,{reducedMotion:true})),person=face(0);
   const full=affectRingPlacement(person,projection(solo),solo,bounds),half=affectRingPlacement(person,projection(duet),duet,bounds);
   assert.ok(half.scale>=full.scale*.65,`${family} must retain presence instead of halving with the pane width`);
-  assert.ok(half.scale>1.2,`${family} should remain visible around the large camera-cover person`);
+  assert.ok(bounds.width*half.scale>duet.width*.65,`${family} remains prominent after its wider border is fitted`);
   assert.ok(bounds.width*half.scale>=duet.width*.65);
   assert.ok(half.x+bounds.minX*half.scale>=0&&half.x+bounds.maxX*half.scale<=duet.width);
 
@@ -322,5 +322,20 @@ test('clear is idempotent, hides all draw data and permits a fresh independent s
  const stats=render(rings,'surprise',200);
  assert.equal(stats.visible,true);assert.deepEqual(stats.activeFamilies,['surprise']);
  assert.equal(stats.pathCount,3);
+ rings.dispose();
+});
+
+
+test('three neck-relative centers stay distinct and each family has three wide continuous bands',()=>{
+ const rings=new AffectRings(new Group()),viewport={width:1000,height:1000};
+ const stats=rings.update(torso(0),cameraProjection(1000,1000,1000,1000),0,{expression:expression('calm'),viewport});
+ assert.equal(stats.centers.length,3);
+ assert.ok(stats.centers.every(c=>c.y<450),'all centers lie above the shoulder line');
+ for(let i=0;i<3;i++)for(let j=i+1;j<3;j++)assert.ok(length(stats.centers[i],stats.centers[j])>20);
+ for(const family of AFFECT_FAMILIES){
+  const bands=buildAffectPaths(family,.5,{reducedMotion:true}).filter(p=>p.closed);
+  assert.equal(bands.length,3);
+  assert.ok(bands.every(p=>p.width>=32));
+ }
  rings.dispose();
 });

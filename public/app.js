@@ -142,7 +142,7 @@ function animate(now){
   if(now-lastMetric>300){
    lastMetric=now;
    const person=livePeople[0],hands=demo||gestureEligible(now)||interactionsEnabled?(person?.hands||[]):[];
-   $('metrics').textContent=`${demo?'模拟演示':'摄像头'} · R11.1 · ${demo?'单人模拟':occupancyNames[occupancy]}\n人脸 ${faceCount} / 姿态 ${poseCount} / 双手 ${hands.length} · 推理 ${Math.round(latency)} ms\n${renderer.rendererType||'Three.js / WebGL'} · ${Math.round(renderer.fps||0)} FPS\n背景 ${demo?'演示背景':backgroundReady?'同帧实景':'等待完整遮罩'}${backgroundWarning?' / '+backgroundWarning:''}${mode==='live'&&lastTracking&&now-lastTracking>=800?' · 等待新的追踪帧':''}`;
+   $('metrics').textContent=`${demo?'模拟演示':'摄像头'} · R11.2 · ${demo?'单人模拟':occupancyNames[occupancy]}\n人脸 ${faceCount} / 姿态 ${poseCount} / 双手 ${hands.length} · 推理 ${Math.round(latency)} ms\n${renderer.rendererType||'Three.js / WebGL'} · ${Math.round(renderer.fps||0)} FPS\n背景 ${demo?'演示背景':backgroundReady?'同帧实景':'等待完整遮罩'}${backgroundWarning?' / '+backgroundWarning:''}${mode==='live'&&lastTracking&&now-lastTracking>=800?' · 等待新的追踪帧':''}`;
    $('expression-output').textContent=expression.visible?`${expression.emoji} ${expression.label}`:'等待清晰面部';
    $('hand-status').textContent=renderer.sixSeven?.stats.active?'6 / 7 手势 · 数字跟随双手':hands.length?`已追踪 ${hands.length} 只手 · 移动手指即可划线`:'双手进入镜头后开始划线';
    const gesture=renderer.sixSeven?.stats||{},count=gesture.trackedHands??0;
@@ -180,7 +180,7 @@ roomUI=mountRoomUI({canvas:$('stage'),getMode:()=>mode,
  onConnectionState:state=>sessionController.setConnection(state),onSession:message=>sessionController.receive(message)});
 sessionTimer=setInterval(()=>sessionController.tick(),200);
 document.addEventListener?.('visibilitychange',()=>sessionController.tick());
-window.betweenUs={get diagnostics(){return {revision:'11.1-sketch-wide-chest-orbits',inputMode:'camera-only',networked:roomUI?.diagnostics.status==='connected',mode,paused,
+window.betweenUs={get diagnostics(){return {revision:'11.2-offset-neck-planetary-bands',inputMode:'camera-only',networked:roomUI?.diagnostics.status==='connected',mode,paused,
  occupancy,observedPeopleCount,ownershipEpoch,interactionsEnabled:eligible(),count:mode==='demo'?1:people.length,
  faceCount,poseCount,handCount:gestureEligible()?(people[0]?.hands?.length||0):0,expression,
  backgroundReady,backgroundWarning,trackingWarnings,statuses:sourceStatuses,renderer:renderer?.rendererType,fps:renderer?.fps,latency,
