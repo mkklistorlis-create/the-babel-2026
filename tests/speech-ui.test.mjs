@@ -156,3 +156,34 @@ test('Mute clears captions without a status prompt and Unmute restarts speech',a
  await h.start();assert.equal(h.ui.diagnostics.active,true);assert.equal(h.get('stop').hidden,false);
  h.ui.destroy();
 });
+
+
+test('active language switching restarts only speech and clears both caption languages',async()=>{
+ const h=harness();await tick();h.ui.setConnection({status:'connected',roomId:'room',role:'A',remoteLanguage:'en'});await h.start();
+ transcript(h,'old','旧字幕');h.ui.receiveMeaning({type:'meaning',speakerId:'B',utteranceId:'peer',turnOrder:1,revision:1,language:'en',targetLanguage:'zh',text:'Hello',translation:'你好',stage:'partial'});
+ const pending=h.ui.changeLanguage('ja');
+ assert.equal(h.ui.language,'ja');assert.equal(h.plugin.language,'ja');assert.equal(h.plugin.targetLanguage,'en');
+ assert.equal(h.plugin.stopCount,1);assert.equal(h.plugin.startCount,2);assert.equal(h.get('language').disabled,false);
+ assert.equal(h.get('source').textContent,'');assert.equal(h.get('remote-meaning').textContent,'');assert.equal(h.sent.at(-1).type,'reset');
+ h.plugin.ready();await pending;
+ h.ui.receiveMeaning({type:'meaning',speakerId:'B',utteranceId:'late',turnOrder:2,revision:1,language:'en',targetLanguage:'zh',text:'Hello',translation:'旧中文',stage:'final'});
+ assert.equal(h.get('remote-meaning').textContent,'');assert.equal(h.ui.diagnostics.active,true);h.ui.destroy();
+});
+test('changing language while muted preserves mute, and rapid startup changes keep only the latest choice',async()=>{
+ const h=harness();await tick();await h.ui.changeLanguage('es');assert.equal(h.plugin.startCount,0);
+ const first=h.ui.start();const second=h.ui.changeLanguage('en');const third=h.ui.changeLanguage('ja');
+ h.plugin.ready();await Promise.all([first,second,third]);assert.equal(h.ui.language,'ja');assert.equal(h.plugin.language,'ja');assert.equal(h.ui.diagnostics.active,true);
+ h.ui.stop('');await h.ui.changeLanguage('zh');assert.equal(h.ui.diagnostics.active,false);assert.equal(h.plugin.startCount,3);
+ await h.ui.changeLanguage('fr');assert.equal(h.ui.language,'zh');h.ui.destroy();
+});
+for(const source of ['zh','en','ja','es'])for(const target of ['zh','en','ja','es'])test(`paired UI routes ${source} speech into ${target} on the listener's remote pane`,async()=>{
+ const a=harness(),b=harness();await tick();await a.ui.changeLanguage(source);await b.ui.changeLanguage(target);
+ a.ui.setConnection({status:'connected',roomId:'room',role:'A',remoteLanguage:b.ui.language});b.ui.setConnection({status:'connected',roomId:'room',role:'B',remoteLanguage:a.ui.language});
+ await a.start();await b.start();
+ transcript(a,'a-turn','Source A');meaning(a,'a-turn','partial','Source A',`Translation in ${target}`);
+ const outgoing=a.sent.at(-1);assert.equal(outgoing.targetLanguage,target);b.ui.receiveMeaning({...outgoing,speakerId:'A'});
+ assert.equal(b.get('remote-meaning').textContent,`Translation in ${target}`);assert.equal(b.get('remote').lang,target);assert.equal(b.get('source').textContent,'');assert.equal(a.get('source').textContent,'Source A');
+ transcript(b,'b-turn','Source B');meaning(b,'b-turn','partial','Source B',`Translation in ${source}`);a.ui.receiveMeaning({...b.sent.at(-1),speakerId:'B'});
+ assert.equal(a.get('remote-meaning').textContent,`Translation in ${source}`);assert.equal(a.get('remote').lang,source);
+ a.ui.destroy();b.ui.destroy();
+});

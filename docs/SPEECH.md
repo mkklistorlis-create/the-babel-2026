@@ -33,6 +33,10 @@ The deployment uses Vercel Fluid Compute with a Node HTTP server exported from `
 
 ## Two-person rooms
 
+Each person can choose independently in **YOUR LANGUAGE** before joining, or **I speak** at the top of their own live pane. The same control is available in solo mode. This selects both the microphone language and the language used to read the partner's translations. For example, with A set to Chinese and B to English, B reads A's English translation on A's pane, while A reads B's Chinese translation on B's pane. Their own captions remain in their own spoken language.
+
+Changing the local language clears old captions and restarts only an active microphone stream; the camera, room and session timer continue. A muted microphone stays muted. The partner's language is shown below the selector and updates the outgoing translation target without changing the local recognition language. Transport deduplication includes the target language so a new translation of the same revision is not discarded after a switch.
+
 Use the existing invitation flow. Each device recognizes its own microphone. The local original transcript appears at the bottom of the local pane. Provisional and final translations, together with their source text, are sent through the existing data channel and displayed below the counterpart’s pane. Each sender translates into the receiving participant’s selected language, synchronized in the bounded visual-state snapshot. The receiving side assigns A/B from the established room role. Partial translations are explicitly marked provisional and are replaced by the final sentence, including when the revision number is unchanged. Older turns cannot replace a newer visible turn. The start screen explains microphone permission, external processing and peer sharing before entry.
 
 The code identifies a device/room role, not a biometric speaker. It does not separate two voices on one microphone. Use one participant per device, avoid having the other speaker audible through the same microphone, and use the existing external call/physical conversation for hearing each other. The artwork's WebRTC media stream still contains video only.
