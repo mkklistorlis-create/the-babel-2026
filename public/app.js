@@ -4,11 +4,12 @@ import {EXPRESSION_LIBRARY,createExpressionTracker,expressionForDemo} from './ex
 import {mountRoomUI} from './room-ui.js';
 import {createSessionController} from './session-controller.js';
 import {mountSessionResults} from './session-results.js';
+import {mountSpeechUI} from './speech/speech-ui.js';
 
 const $=id=>document.getElementById(id);
 const occupancyNames={single:'单人已确认',multiple:'检测到多人',empty:'未检测到人',uncertain:'正在确认单人'};
 const expressions=createExpressionTracker();
-let renderer,roomUI,sessionController,sessionResults,sessionTimer,mode='idle',generation=0,paused=false,frame=0,cameraReady=false;
+let renderer,roomUI,speechUI,sessionController,sessionResults,sessionTimer,mode='idle',generation=0,paused=false,frame=0,cameraReady=false;
 let people=[],occupancy='empty',ownershipEpoch=0,observedPeopleCount=0;
 let lastTracking=0,lastObserved=0,latency=0,faceCount=0,poseCount=0,trackingHealthy=false;
 let backgroundReady=false,backgroundWarning='',trackingWarnings=[],sourceStatuses={};
@@ -40,7 +41,7 @@ function status(event){
   if(event.state==='error'||event.state==='recovering')occupancy='uncertain';
   observeSession();
  }
- if(event.state==='error'){cameraReady=false;sessionController?.setSource?.({active:false,mode});roomUI?.leave();}
+ if(event.state==='error'){speechUI?.stop('摄像头已停止，请重新开启语音。');cameraReady=false;sessionController?.setSource?.({active:false,mode});roomUI?.leave();}
  if(event.state==='error'||event.state==='recovering')notice(event.message,true,'tracking');
  else if(event.state==='warning'){
   const actionable=Array.isArray(event.diagnostics)?event.diagnostics.filter(w=>w.stage!=='occupancy'):null;
@@ -60,6 +61,7 @@ const tracker=createTracker({video:$('camera'),onStatus:status,onFrame(data){
  if(mode!=='live'){data.matchedFrame?.close();return;}
  people=data.people||[];occupancy=data.occupancy||'uncertain';
  ownershipEpoch=data.ownershipEpoch??ownershipEpoch;
+ speechUI?.checkSource?.();
  trackingHealthy=data.countGuardHealthy===true;
  observedPeopleCount=data.observedPeopleCount||0;faceCount=data.faceCount||0;poseCount=data.poseCount||0;
  backgroundReady=Boolean(data.foregroundMask?.complete);backgroundWarning=data.foregroundWarning||'';
@@ -84,11 +86,12 @@ function enter(next){
 }
 async function start(){
  if(!renderer||mode!=='idle')return mode==='live'&&cameraReady;
- const token=enter('live');notice('正在启动摄像头与视觉追踪…',true);
+ const token=enter('live');void speechUI?.start?.();notice('正在启动摄像头与视觉追踪…',true);
  try{await tracker.start();if(token!==generation)return false;cameraReady=true;sessionController?.setSource?.({active:true,mode:'live'});notice('把双手伸入画面试着划线，再试试微笑、张嘴或转头。');return true;}
- catch(error){if(token!==generation)return false;cameraReady=false;notice(`摄像头无法启动：${error.message||'请检查授权或模型加载'}。Esc 返回，可选择演示。`,true);$('debug').hidden=false;return false;}
+ catch(error){if(token!==generation)return false;cameraReady=false;speechUI?.stop('摄像头未启动，麦克风已关闭。');notice(`摄像头无法启动：${error.message||'请检查授权或模型加载'}。Esc 返回，可选择演示。`,true);$('debug').hidden=false;return false;}
 }
 function stop(){
+ speechUI?.stop();
  sessionController?.setSource?.({active:false,mode});
  roomUI?.leave();roomUI?.closePanel();
  generation++;mode='idle';paused=false;cameraReady=false;trackingHealthy=false;occupancy='empty';
@@ -127,7 +130,7 @@ window.addEventListener('keydown',e=>{
  if(e.key.toLowerCase()==='d')$('debug').hidden=!$('debug').hidden;
  if(e.code==='Space'){e.preventDefault();pause();}
 });
-window.addEventListener('pagehide',()=>{roomUI?.destroy();sessionController?.destroy();sessionResults?.destroy();clearInterval(sessionTimer);tracker.stop();renderer?.destroy();cancelAnimationFrame(frame);clearTimeout(statusTimer);clearTimeout(controlsTimer);});
+window.addEventListener('pagehide',()=>{speechUI?.destroy();roomUI?.destroy();sessionController?.destroy();sessionResults?.destroy();clearInterval(sessionTimer);tracker.stop();renderer?.destroy();cancelAnimationFrame(frame);clearTimeout(statusTimer);clearTimeout(controlsTimer);});
 function animate(now){
  if(renderer){
   const demo=mode==='demo',livePeople=demo?getDemoPeople(now/1000).slice(0,1):mode==='live'?people:[];
@@ -161,7 +164,7 @@ frame=requestAnimationFrame(animate);
 function getInteractionSnapshot(){
   const demo=mode==='demo',present=demo||eligible(),person=demo?getDemoPeople(performance.now()/1000)[0]:people[0];
   const hands=present?(person?.hands||[]).slice(0,2).map(hand=>({id:String(hand.id),tip:hand.tip,palm:hand.palm})):[];
-  return {mode,present,hands,expression:expression.visible?{id:expression.id,score:expression.score,actions:expression.actions}:null,
+  return {mode,present,hands,language:speechUI?.language||'zh',expression:expression.visible?{id:expression.id,score:expression.score,actions:expression.actions}:null,
    aspect:renderer?.width/renderer?.height||1};
 }
 sessionResults=mountSessionResults({onStart:()=>sessionController?.start(),onFinish:()=>sessionController?.finish()});
@@ -175,13 +178,14 @@ function observeSession(){sessionController?.observe(getStatisticsSnapshot());}
 sessionController=createSessionController({autoStart:true,send:message=>roomUI?.sendSession(message)||false,
  getSnapshot:getStatisticsSnapshot,
  onChange:state=>sessionResults.update(state)});
+speechUI=mountSpeechUI({getDiagnostics:()=>({mode,occupancy,ownershipEpoch}),sendMeaning:message=>roomUI?.sendMeaning(message)||false});
 roomUI=mountRoomUI({canvas:$('stage'),getMode:()=>mode,
  prepareSource:kind=>kind==='demo'?startDemo():start(),getSnapshot:getInteractionSnapshot,
- onConnectionState:state=>sessionController.setConnection(state),onSession:message=>sessionController.receive(message)});
+ onConnectionState:state=>{sessionController.setConnection(state);speechUI.setConnection(state);},onSession:message=>sessionController.receive(message),onMeaning:message=>speechUI.receiveMeaning(message)});
 sessionTimer=setInterval(()=>sessionController.tick(),200);
 document.addEventListener?.('visibilitychange',()=>sessionController.tick());
-window.betweenUs={get diagnostics(){return {revision:'12.2-radial-bloom-collage',inputMode:'camera-only',networked:roomUI?.diagnostics.status==='connected',mode,paused,
+window.betweenUs={get diagnostics(){return {revision:'12.3-speech',inputMode:speechUI?.diagnostics.active?'camera-and-speech':'camera-only',networked:roomUI?.diagnostics.status==='connected',mode,paused,
  occupancy,observedPeopleCount,ownershipEpoch,interactionsEnabled:eligible(),count:mode==='demo'?1:people.length,
  faceCount,poseCount,handCount:gestureEligible()?(people[0]?.hands?.length||0):0,expression,
  backgroundReady,backgroundWarning,trackingWarnings,statuses:sourceStatuses,renderer:renderer?.rendererType,fps:renderer?.fps,latency,
- sixSeven:renderer?.sixSeven?.stats,affectBackdrop:renderer?.affectBackdrop?.stats,gestureEnabled:mode==='demo'||gestureEligible(),room:roomUI?.diagnostics,session:sessionController.state,microphone:false,transcription:false,semantics:false};}};
+ sixSeven:renderer?.sixSeven?.stats,affectBackdrop:renderer?.affectBackdrop?.stats,gestureEnabled:mode==='demo'||gestureEligible(),room:roomUI?.diagnostics,session:sessionController.state,microphone:Boolean(speechUI?.diagnostics.active),transcription:Boolean(speechUI?.diagnostics.active),semantics:Boolean(speechUI?.diagnostics.active),speech:speechUI?.diagnostics};}};

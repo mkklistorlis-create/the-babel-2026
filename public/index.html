@@ -2,7 +2,10 @@
 <html lang="zh-CN">
 <head>
  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f3eb">
- <title>Between Us · 身体与表情</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/session-results.css">
+ <title>Between Us · 身体与表情</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/session-results.css"><link rel="stylesheet" href="/speech/speech-ui.css"><link rel="stylesheet" href="/ui-layout.css">
+ <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Noto+Sans+JP:wght@700&family=Noto+Sans+SC:wght@700&display=swap" rel="stylesheet">
+ <link rel="stylesheet" href="/speech/kinetic-captions.css">
 </head>
 <body>
  <canvas id="stage" aria-label="粒子马赛克人物、双手划线与头部 emoji 贴饰" tabindex="0"></canvas>
@@ -17,12 +20,12 @@
   <p class="eyebrow">BETWEEN US / BODY STUDY 07</p>
   <h1>你。<span>我。</span><br>我们之间。</h1>
   <p class="lead">挥挥手。笑一下。<br>让动作留下痕迹。</p>
+  <label class="language-choice" for="speech-language"><span>我使用的语言 / MY LANGUAGE</span><select id="speech-language"><option value="zh">中文</option><option value="en">English</option><option value="ja">日本語</option><option value="es">Español</option></select><small>用于识别我的话，也用于显示对方的译文。</small></label>
   <div class="actions"><button id="start" class="primary">开始 ↗</button><button id="demo">先试试动态</button><button id="room-open-intro">双人联机</button></div>
-  <p id="consent" class="note">一台电脑，一个人。仅使用摄像头，画面在本机处理。<br>加入双人房间后，将向对方发送处理后的画面（含实景背景）及手部、表情数据。<br>双手划线 · 表情贴饰 · 粒子马赛克</p>
+  <p id="consent" class="note">一台电脑，一个人。点击开始将申请摄像头与麦克风权限。画面在本机处理；语音发送到 Deepgram，文字发送到语义服务。<br>加入双人房间后，将向对方发送处理后的画面（含实景背景）及手部、表情数据、原文与译文。<br>双手划线 · 表情贴饰 · 粒子马赛克</p>
   <p id="boot-error" role="alert"></p>
  </section>
  <span id="mode-tag" hidden>动态演示 · 模拟画面</span>
- <div id="transport" hidden><button id="exit" title="Esc 返回并关闭摄像头">退出</button><button id="pause">暂停粒子</button><button id="room-open">双人联机</button><button id="debug-toggle">测试面板 D</button></div>
  <button id="room-badge" hidden aria-label="打开联机状态"></button>
  <section id="room-panel" hidden role="dialog" aria-modal="false" aria-labelledby="room-title">
   <div class="panel-heading"><strong id="room-title">一起进入画面</strong><button id="room-close" aria-label="关闭联机面板">×</button></div>
@@ -47,7 +50,11 @@
   <p class="note">双手在镜头里，上下位置交换一次即可开启 6 / 7；停手后继续跟随。双手都移出画面约一秒，或同时握拳，即可结束。</p>
   <p class="note">D 测试面板 · 空格暂停粒子 · Esc 退出<br>多人出现时暂停个人追踪，确认单人后自动继续。<br>每台电脑仅追踪当前的一位参与者。</p>
  </aside>
- <p id="status" role="status" hidden></p>
- <script src="/vendor/peerjs.min.js"></script><script type="module" src="/app.js"></script>
+ <div id="ui-dock">
+  <p id="status" role="status" hidden></p>
+  <div id="caption-deck" aria-label="实时字幕区"><section id="speech-captions" class="live-captions" hidden aria-label="我的实时字幕"><strong id="speech-local-label">我说的话</strong><p id="speech-source" class="caption-text" aria-live="polite" aria-atomic="true"></p><div hidden><p id="speech-meaning"></p><p id="speech-meta"></p></div><p id="speech-caption-state" class="caption-meta"></p></section><section id="speech-remote" class="live-captions remote-captions" hidden aria-label="对方的实时翻译"><strong>对方说的话</strong><p id="speech-remote-meaning" class="caption-text" aria-live="polite" aria-atomic="true"></p><p id="speech-remote-source" class="caption-original"></p><p id="speech-remote-meta" class="caption-meta"></p></section></div>
+  <div id="control-deck"><div id="transport" hidden><button id="speech-start">开启麦克风</button><button id="speech-stop" hidden>关闭麦克风</button><button id="exit" title="Esc 返回并关闭摄像头">退出</button><button id="pause">暂停粒子</button><button id="room-open">双人联机</button><button id="debug-toggle">调试 D</button></div></div>
+ </div>
+ <script src="/vendor/peerjs.min.js"></script><script type="module" src="/app.js"></script><script type="module" src="/ui-layout.js"></script><script type="module" src="/speech/kinetic-captions.js"></script>
 </body>
 </html>

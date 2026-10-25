@@ -1,6 +1,8 @@
-# The Babel — two-person connection test (R07.9)
+# Two-device networking
 
-Each computer runs the existing R07.6 single-person vision pipeline. The local artwork canvas is captured at up to 1280×720 / 20 fps and sent with WebRTC. The remote artwork is played directly: no second face, hand or segmentation inference is run for the remote participant. A is always on the left and B on the right.
+The reliable data channel carries visual state, session statistics and partial/final translated captions. Each device uses its own microphone; the WebRTC media stream remains video-only. See [SPEECH.md](SPEECH.md) for automatic microphone entry, permission handling and speech lifecycle. No participant access code is required.
+
+Each computer runs the single-person vision pipeline. The local artwork canvas is captured at up to 1280×720 / 20 fps and sent with WebRTC. The remote artwork is played directly: no second face, hand or segmentation inference is run for the remote participant. A is always on the left and B on the right.
 
 ## Try it
 
@@ -16,7 +18,7 @@ Each computer runs the existing R07.6 single-person vision pipeline. The local a
 - Signaling exchanges connection information; the room host handles the one-guest admission handshake. There is no persistent user account or room database.
 - Joining sends the processed artwork, **including the photographic camera background**, to the admitted participant. Raw camera frames stay inside local processing. Only the local artwork canvas is transmitted; the remote-containing display is never captured again.
 - A separate data connection sends normalized hand positions and bounded facial movement values at most 10 times per second. These are movement values, not psychological diagnoses or emotion probabilities.
-- No microphone, speech recognition, semantic model, recording service or media storage is enabled.
+- Speech audio is processed by Deepgram and transcript text by the configured semantic provider. The peer data channel shares captions and translations, not microphone audio. The app does not save audio recordings or transcript logs.
 - Invitation links grant access to the room. Share them only with the intended partner. Room IDs contain 128 random bits; the host page must remain open.
 
 ## Network limits
@@ -38,8 +40,8 @@ npm test
 npm start
 ```
 
-`npm run build` fetches pinned Three.js, MediaPipe and PeerJS assets and verifies their SHA-256 values against `assets-manifest.json`. Existing correct local assets are reused. The output goes to `dist/`; Vercel serves that folder and the `/api/rtc-config` function. This avoids storing large models and WASM binaries in Git.
+`npm run build` fetches pinned Three.js, MediaPipe and PeerJS assets and verifies their SHA-256 values against `assets-manifest.json`. Existing correct local assets are reused. The output goes to `dist/`; Vercel serves that folder and the RTC/speech API endpoints. This avoids storing large models and WASM binaries in Git.
 
 Vercel project settings: framework **Other**, build `npm run build`, output `dist`, Node.js **24.x**. `vercel.json` includes the same settings. The local server intentionally listens only on loopback; use the deployed HTTPS URL for cross-device tests.
 
-The facial expression, particle, fingertip and six/seven detection algorithms remain byte-identical to R07.6. The new room code only subscribes to their output. The proposed shared emotion artwork and cross-border collision layer are not implemented in this version.
+The room code subscribes to local tracking and sends processed artwork. Session summaries support a shared final artwork; see [session statistics](architecture/SESSION-STATS.md) and [artwork generation](architecture/ARTWORK-GENERATION.md). Speech translations do not alter facial classification or visual emotion mapping.
