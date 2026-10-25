@@ -1,0 +1,70 @@
+/* Desktop session and connection screens share the welcome screen's design. */
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+#session-results,#room-panel{font-family:'Babel Inter',Arial,sans-serif;color:#171715;background:#e5ff4a}
+#session-results button,#room-panel button,#room-panel input,#room-panel select,#session-results select{font-family:inherit;border-radius:0;box-shadow:none}
+#session-results button:focus-visible,#room-panel button:focus-visible,#room-panel input:focus-visible,#room-panel select:focus-visible,#session-results select:focus-visible{outline:3px solid #171715;outline-offset:3px}
+.compact-brand{width:108px;height:39px;flex:none}
+#session-results{overflow:auto;padding:24px 32px}
+#session-results .session-sheet{width:100%;max-width:1600px;height:calc(100dvh - 48px);min-height:610px;padding:0;margin:auto;display:flex;flex-direction:column;gap:14px;position:relative}
+#session-results .session-header{border:0;padding:0;min-height:48px;align-items:center;gap:24px;flex:none}
+#session-results .session-header h2{margin:0;flex:1;text-align:center;font-size:clamp(20px,2vw,30px);font-weight:700;line-height:1.15;letter-spacing:-.04em}
+#session-results #session-close{font-size:13px;font-weight:700;padding:13px 20px;line-height:1.2;border:1px solid #171715;background:#f5f4ec;white-space:nowrap;flex:none}
+.session-dashboard{background:#f5f4ec;border:1px solid #171715;padding:22px 24px 18px;flex:1;min-height:0;display:flex;flex-direction:column;gap:20px}
+#session-results #session-summaries{display:flex;gap:32px;flex:none;align-items:flex-start;min-width:0}
+.summary-shared,.summary-participant dl{display:flex;gap:28px;margin:0}
+.summary-participant{min-width:0;position:relative}.summary-participant dl{gap:28px}
+.summary-metric{min-width:0}.summary-metric dt{font-size:9px;line-height:1.3;margin:0 0 5px;white-space:nowrap}.summary-metric dd{font-size:27px;font-weight:700;line-height:1.15;margin:0;letter-spacing:-.04em;font-variant-numeric:tabular-nums;white-space:nowrap}
+#session-results[data-kind=duet] #session-summaries{gap:20px;align-items:center}#session-results[data-kind=duet] .summary-participant{border-left:1px solid #17171544;padding-left:20px;display:flex;align-items:center;gap:15px;flex:1}
+#session-results[data-kind=duet] .summary-metric dd{font-size:23px}#session-results[data-kind=duet] .summary-participant dl{gap:20px;flex:1;justify-content:space-between}.summary-role{font-size:11px;max-width:60px;line-height:1.5}.summary-role:before{content:'';display:block;width:10px;height:10px;background:#d5ff00;border:1px solid #171715;margin-bottom:4px}[data-role=B]>.summary-role:before{background:#8754ff}.summary-pending{position:absolute;bottom:-14px;left:20px;font-size:10px;color:#735722}
+.session-main{display:grid;grid-template-columns:minmax(0,.43fr) minmax(0,.57fr);gap:26px;flex:1;min-height:0}
+#session-results .session-art-section,#session-results .session-chart-section,#session-results .session-timeline-section{padding:0;margin:0;border:0;min-width:0;min-height:0}
+#session-results .session-art-section{display:flex;flex-direction:column;gap:10px}
+#session-results h3{font-size:11px;font-weight:700;line-height:1.4;letter-spacing:0;margin:0}
+#session-results .session-art-wrap{margin:0;border:0;background:#eeeee5;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#session-results #session-art{width:100%;height:100%;object-fit:contain}
+#session-results .session-note{font-size:10px;line-height:1.5;margin:0;color:#70706a;max-width:none;overflow-wrap:anywhere}
+#session-results #session-art-empty{font-size:12px;line-height:1.5}
+.session-data{min-width:0;min-height:0;display:grid;grid-template-rows:minmax(0,1.4fr) minmax(0,1fr);gap:12px}
+#session-results .session-chart-section,#session-results .session-timeline-section{display:flex;flex-direction:column;gap:5px}
+#session-results .session-section-heading{gap:12px;min-height:24px;flex:none;align-items:center;flex-direction:row}
+#session-results #session-metric{padding:5px 8px;margin:0;font-size:10px;background:transparent;max-width:150px;flex:none}
+.chart-caption{display:flex;justify-content:space-between;align-items:center;gap:10px;flex:none}
+#session-results .session-legend{margin:0;gap:16px;font-size:10px;flex-wrap:wrap;line-height:1.4}.session-legend i{width:8px;height:8px}
+#session-results #session-chart{padding:0;min-height:0;flex:1;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+#session-results #session-chart svg{width:max(100%,1000px);height:100%;min-height:110px;max-width:none}
+.chart-scroll-controls{display:flex;gap:4px;align-items:center;font-size:9px;font-weight:700;height:18px;flex:none}
+#session-results .chart-scroll-controls button{padding:0 4px;border:0;background:transparent;font-size:15px;line-height:1}
+#session-results #session-timeline{padding:0;flex:1;min-height:0;overflow:hidden}
+#session-results #session-timeline svg{width:100%;height:100%;min-width:0;display:block}
+.session-bottom{display:flex;align-items:center;justify-content:space-between;gap:16px;flex:none;min-height:24px}.session-bottom>div{display:flex;gap:20px;flex:none}
+#session-results #session-result-status{margin:0;font-size:11px;line-height:1.4;max-width:60%;font-weight:700;overflow-wrap:anywhere}
+#session-results .session-bottom button{padding:0;border:0;background:transparent;font-size:10px;white-space:nowrap}
+#session-results .session-footer{margin:0;padding:0;border:0;align-items:center;flex-direction:row;min-height:44px;flex:none;gap:18px}
+.session-footer>strong{font-size:18px;letter-spacing:-.04em;line-height:1.1}#session-results .session-footer button{font-size:12px;font-weight:700;padding:12px 18px;min-height:44px;background:#f5f4ec;border:1px solid #171715}
+#session-results #session-download-png{color:#f5f4ec;background:#171715}
+#session-results button:disabled{opacity:.45;cursor:default}#session-results #session-export-status{margin:0;font-size:10px;min-height:0;position:absolute;bottom:-15px;right:0}
+#session-measurement{position:absolute;inset:62px 0 58px;z-index:2;overflow:auto;background:#f5f4ec;border:1px solid #171715;padding:24px;box-shadow:0 8px 24px #17171522}
+#session-measurement .session-note{margin:16px 0;max-width:1000px}#session-measurement button{padding:9px 14px;font-size:11px;border:1px solid #171715;background:transparent}.measurement-actions{display:flex;gap:12px;margin-top:16px}
+#session-table table{white-space:normal}#session-table td{overflow-wrap:anywhere}
+#room-panel{inset:0;transform:none;width:100%;height:100dvh;max-width:none;max-height:none;border:0;padding:36px;overflow:auto;display:flex;align-items:center;justify-content:center;box-shadow:none}
+.room-sheet{width:min(100%,980px);max-height:100%;overflow:auto;background:#f5f4ec;border:1px solid #171715;padding:28px 36px;min-width:0}
+.room-heading{display:flex;justify-content:space-between;align-items:center}.room-heading .compact-brand{width:88px;height:34px}
+#room-panel #room-close{padding:0 4px;margin:0;border:0;background:transparent;font-size:30px;line-height:1}
+#room-panel #room-title{font-size:clamp(27px,3.3vw,40px);line-height:1.1;letter-spacing:-.045em;font-weight:700;margin:22px 0 10px}
+.room-subtitle{color:#777770;font-size:14px;line-height:1.5;margin:0 0 22px}
+#room-panel #room-source-row{display:flex;justify-content:space-between;align-items:center;border:1px solid #171715;padding:0 16px;margin:0 0 24px;min-height:48px;font-size:11px;font-weight:700;gap:16px}
+#room-panel #room-source{border:0;width:auto;background:transparent;font-size:14px;font-weight:700;max-width:55%}
+.room-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:30px}.room-columns>section{min-width:0}.panel-kicker{font-size:11px;font-weight:700;margin:0 0 12px}
+#room-panel h3{font-size:25px;font-weight:700;line-height:1.2;letter-spacing:-.03em;margin:0 0 12px}.room-columns p:not(.panel-kicker){font-size:13px;line-height:1.5;color:#777770;margin:0 0 13px}
+#room-panel input{background:transparent;border:1px solid #171715;width:100%;min-width:0;height:43px;font-size:13px;padding:12px 14px;overflow:hidden;text-overflow:ellipsis}
+#room-panel .room-sheet button{font-size:13px;line-height:1.3;font-weight:700;padding:14px 18px;background:transparent;border:1px solid #171715;margin:10px 0 0;overflow-wrap:anywhere}
+#room-panel #room-create{background:#171715;color:#f5f4ec}#room-create,#room-join{width:100%}#room-panel #room-create{margin-top:0}
+.room-invite-row{display:flex;gap:8px;align-items:center;min-width:0}#room-panel .room-invite-row button{margin:0;white-space:nowrap;padding:12px;font-size:11px;flex:none}#room-panel #room-invite{font-size:11px}
+.room-bottom{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;border-top:1px solid #171715;margin-top:30px;padding-top:18px}
+#room-panel #room-status{font-size:12px;line-height:1.5;margin:0;font-weight:700;overflow-wrap:anywhere;flex:1;min-width:0}#room-status:before{content:'○';margin-right:7px}#room-panel[data-status=connected] #room-status:before{content:'●'}
+#room-panel #room-help{border:0;padding:0;margin:0;font-size:12px;font-weight:400;white-space:nowrap;flex:none}
+#room-panel .room-privacy,#room-panel #room-network-note{font-size:11px;color:#777770;line-height:1.5;margin:20px 0 0;overflow-wrap:anywhere}
+#room-panel .room-actions:has(button:not([hidden])){margin-top:8px}.room-actions{gap:10px}#room-panel button:disabled{opacity:.45;cursor:default}
+@media(min-width:900px) and (max-width:1200px){#session-results{padding:20px}#session-results .session-sheet{height:calc(100dvh - 40px)}.session-dashboard{padding:18px;gap:16px}.summary-shared,.summary-participant dl{gap:18px}#session-results[data-kind=duet] #session-summaries{gap:12px}#session-results[data-kind=duet] .summary-participant{padding-left:12px;gap:10px}#session-results[data-kind=duet] .summary-participant dl{gap:10px}.summary-metric dt{font-size:8px}#session-results[data-kind=duet] .summary-metric dd{font-size:20px}.session-main{gap:20px}.room-sheet{padding:26px 30px}}
+
+#session-results[data-kind=solo] .session-line-key{border-top-color:#171715}

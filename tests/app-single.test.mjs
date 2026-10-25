@@ -9,14 +9,14 @@ import {createSessionController as createRealSessionController} from '../public/
 function appHarness({startError,recordSessions=false}={}){
  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
  const nodes=new Map([...html.matchAll(/id="([^"]+)"/g)].map(([,id])=>[id,{id,hidden: ['debug','transport'].includes(id),checked:false,value:'',textContent:'',attributes:{},setAttribute(name,value){this.attributes[name]=value;},focus(){},add(){}}]));
- let trackerCallbacks,renderer,raf,roomOptions,sessionOptions,sessionController,sessionState={phase:'idle'},now=100,stops=0,starts=0,networkCalls=0,sessionIds=0,speechStarts=0;
+ let trackerCallbacks,renderer,raf,roomOptions,sessionOptions,sessionController,sessionState={phase:'idle'},now=100,stops=0,starts=0,networkCalls=0,sessionIds=0,speechStarts=0,speechStops=0,resultOptions,resultCloses=0;
  const lifecycle=[],keyHandlers=[];
  class Canvas{constructor(){renderer=this;this.state={};this.fps=60;this.rendererType='CPU fixture';}setState(s){Object.assign(this.state,s);}setPointer(){}destroy(){}}
  const person={id:'local',faceSeen:true,stale:false,faceBBox:{x:.4,y:.2,width:.2,height:.25},facialActions:{smile:0},hands:[{id:'left'},{id:'right'}]};
  const globals={console,EXPRESSION_LIBRARY,createExpressionTracker,expressionForDemo,DuetCanvas:Canvas,mountRoomUI:options=>{roomOptions=options;return {leave(){lifecycle.push('room-leave');},closePanel(){},destroy(){lifecycle.push('room-destroy');},panelOpen:false,diagnostics:{status:'idle'}};},
   createSessionController:options=>{sessionOptions=options;sessionController=recordSessions?createRealSessionController({...options,send:()=>true,now:()=>now,randomId:()=> (++sessionIds).toString(16).padStart(32,'0')}):{get state(){return sessionState;},setConnection(s){sessionState={...sessionState,connection:s};},receive(s){sessionState={...sessionState,message:s};},start(){},finish(){},observe(){},tick(){},destroy(){}};return sessionController;},
-  mountSessionResults:()=>({update(){},close(){},destroy(){},panelOpen:false}),
-  mountSpeechUI:()=>({start(){speechStarts++;},stop(){},destroy(){},setConnection(){},receiveMeaning(){},diagnostics:{active:false}}),
+  mountSessionResults:options=>{resultOptions=options;return {update(){},close(){resultCloses++;},destroy(){},panelOpen:false};},
+  mountSpeechUI:()=>({start(){speechStarts++;},stop(){speechStops++;},destroy(){},setConnection(){},receiveMeaning(){},diagnostics:{active:false}}),
   getDemoPeople:()=>[person],createTracker:callbacks=>{trackerCallbacks=callbacks;return {async start(){starts++;if(startError)throw new Error(startError);},stop(){stops++;lifecycle.push('tracker-stop');}};},
   document:{getElementById:id=>nodes.get(id)||null,body:{classList:{add(){},remove(){}}}},window:{addEventListener(type,handler){if(type==='keydown')keyHandlers.push(handler);}},Option:class{},innerWidth:1280,innerHeight:720,
   performance:{now:()=>now},Date,setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},requestAnimationFrame:callback=>{raf=callback;return 1;},cancelAnimationFrame(){},
@@ -24,7 +24,7 @@ function appHarness({startError,recordSessions=false}={}){
  };
  const context=vm.createContext(globals);
  vm.runInContext(readFileSync(new URL('../public/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),context);
- return {nodes,renderer,context,lifecycle,get roomOptions(){return roomOptions;},get sessionOptions(){return sessionOptions;},get sessionController(){return sessionController;},get stops(){return stops;},get starts(){return starts;},get networkCalls(){return networkCalls;},get speechStarts(){return speechStarts;},
+ return {nodes,renderer,context,lifecycle,get resultOptions(){return resultOptions;},get resultCloses(){return resultCloses;},get speechStops(){return speechStops;},get roomOptions(){return roomOptions;},get sessionOptions(){return sessionOptions;},get sessionController(){return sessionController;},get stops(){return stops;},get starts(){return starts;},get networkCalls(){return networkCalls;},get speechStarts(){return speechStarts;},
   key:(key,code='')=>keyHandlers.forEach(fn=>fn({key,code,target:{tagName:'BODY'},preventDefault(){}})),start:()=>nodes.get('start').onclick(),frame(time){now=time;raf(time);},setTime(time){now=time;},status:event=>trackerCallbacks.onStatus(event),
   observation(occupancy,options={}){trackerCallbacks.onFrame({people:occupancy==='single'?[{...person,faceObservedAt:now}]:[],count:occupancy==='single'?1:0,occupancy,countGuardHealthy:true,ownershipEpoch:1,observedPeopleCount:occupancy==='multiple'?2:occupancy==='single'?1:0,faceCount:occupancy==='multiple'?2:1,poseCount:1,latencyMs:40,...options});},
  };
@@ -167,4 +167,15 @@ test('live controls remove old actions while D still toggles diagnostics',async(
  h.key('d');assert.equal(h.nodes.get('debug').hidden,false);
  h.key('D');assert.equal(h.nodes.get('debug').hidden,true);
  h.key(' ','Space');h.frame(200);assert.equal(h.renderer.state.paused,false);
+});
+
+for(const role of [null,'A','B'])test(`Back home releases media and closes results in ${role||'solo'} mode`,async()=>{
+ const h=appHarness({recordSessions:true});await h.start();h.observation('single');
+ if(role)h.roomOptions.onConnectionState({status:'connected',role,roomId:'test-room'});
+ h.resultOptions.onHome();
+ assert.equal(h.stops,1);assert.equal(h.speechStops,1);assert.equal(h.resultCloses,1);
+ assert.deepEqual(h.lifecycle,['room-leave','tracker-stop']);
+ assert.equal(h.sessionController.state.sourceActive,false);
+ assert.equal(h.nodes.get('intro').hidden,false);assert.equal(h.nodes.get('transport').hidden,true);
+ assert.equal(h.context.window.betweenUs.diagnostics.mode,'idle');
 });

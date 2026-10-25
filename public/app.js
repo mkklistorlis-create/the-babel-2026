@@ -94,7 +94,7 @@ async function start(){
 function stop(){
  speechUI?.stop();
  sessionController?.setSource?.({active:false,mode});
- roomUI?.leave();roomUI?.closePanel();
+ roomUI?.leave();roomUI?.closePanel();sessionResults?.close();
  generation++;mode='idle';cameraReady=false;trackingHealthy=false;occupancy='empty';
  tracker.stop();expressions.reset();people=[];expression={visible:false,emoji:'',label:'等待面部'};
  renderer?.setState({mode:'idle',matchedFrame:null,foregroundMask:null,people:[],count:0,expression,interactionsEnabled:false,gestureEnabled:false,gestureOwner:gestureOwner(),ownershipEpoch:`${generation}:0`});
@@ -163,7 +163,7 @@ function getInteractionSnapshot(){
   return {mode,present,hands,language:speechUI?.language||'zh',expression:expression.visible?{id:expression.id,score:expression.score,actions:expression.actions}:null,
    aspect:renderer?.width/renderer?.height||1};
 }
-sessionResults=mountSessionResults({onStart:()=>sessionController?.start(),onFinish:()=>sessionController?.finish()});
+sessionResults=mountSessionResults({onStart:()=>sessionController?.start(),onFinish:()=>sessionController?.finish(),onHome:stop});
 function getStatisticsSnapshot(){
  return {mode,present:mode==='demo'||eligible(),paused:paused||document.hidden===true,
   expression:expression.visible?{id:expression.id,actions:expression.actions,score:expression.score,demo:expression.demo===true}:null};

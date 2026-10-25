@@ -8,6 +8,7 @@
  <link rel="stylesheet" href="/speech/kinetic-captions.css">
  <link rel="stylesheet" href="/intro.css">
  <link rel="stylesheet" href="/live-controls.css">
+ <link rel="stylesheet" href="/panels.css">
 </head>
 <body>
  <canvas id="stage" aria-label="粒子马赛克人物、双手划线与头部 emoji 贴饰" tabindex="0"></canvas>
@@ -39,18 +40,24 @@
  </section>
  <span id="mode-tag" hidden>动态演示 · 模拟画面</span>
  <button id="room-badge" hidden aria-label="打开联机状态"></button>
- <section id="room-panel" hidden role="dialog" aria-modal="false" aria-labelledby="room-title">
-  <div class="panel-heading"><strong id="room-title">一起进入画面</strong><button id="room-close" aria-label="关闭联机面板">×</button></div>
-  <p class="note">两台电脑，各自使用一个摄像头。创建房间后，把邀请链接发给另一位。</p>
-  <label id="room-source-row">本次画面来源<select id="room-source"><option value="live">我的摄像头</option><option value="demo">模拟画面 · 仅测试连接</option></select></label>
-  <button id="room-create" class="primary">创建双人房间 ↗</button>
-  <label for="room-input">已有邀请？</label><input id="room-input" type="text" placeholder="粘贴邀请链接或房间 ID" autocomplete="off" spellcheck="false" maxlength="2048">
-  <button id="room-join">加入房间</button>
-  <p id="room-status" role="status">尚未连接</p>
-  <div id="room-invite-section" hidden><label for="room-invite">发给另一位</label><input id="room-invite" readonly><button id="room-copy">复制邀请链接</button></div>
-  <div class="room-actions"><button id="room-retry" hidden>重新连接</button><button id="room-leave" hidden>离开房间，继续单人</button></div>
-  <p id="room-network-note" class="note"></p>
-  <p class="note">连接由 PeerServer Cloud 协助建立。加入后发送处理后的画面（含实景背景）与互动数据；本版本不传输声音。</p>
+ <section id="room-panel" hidden role="dialog" aria-modal="true" aria-labelledby="room-title" lang="en">
+  <div class="room-sheet">
+   <div class="room-heading"><svg class="babel-brand compact-brand" viewBox="0 0 760 230" role="img" aria-label="The Babel">
+    <title>The Babel</title>
+    <g fill="currentColor"><path d="M0 0H170V92H93L46 138V92H0Z"/><path d="M62 138H139L185 92V138H232V230H62Z"/></g>
+    <g class="babel-wordmark" fill="currentColor"><text x="280" y="79" font-size="100" textLength="200" lengthAdjust="spacingAndGlyphs">THE</text><text x="280" y="230" font-size="151" textLength="480" lengthAdjust="spacingAndGlyphs">BABEL</text></g>
+   </svg><button id="room-close" aria-label="Close connection panel">×</button></div>
+   <h2 id="room-title">CONNECT WITH SOMEONE.</h2>
+   <p class="room-subtitle">Two computers. One camera each. Create a room and share the invite link.</p>
+   <label id="room-source-row">CAMERA SOURCE<select id="room-source"><option value="live">My camera</option></select></label>
+   <div class="room-columns"><section><p class="panel-kicker">01 / START A ROOM</p><h3>Invite someone in.</h3><p>Create a room, then send them your invite link.</p><button id="room-create" class="primary">Create room ↗</button>
+    <div id="room-invite-section" hidden><label for="room-invite">YOUR INVITE LINK</label><div class="room-invite-row"><input id="room-invite" readonly aria-label="Your invite link"><button id="room-copy">Copy link ↗</button></div></div>
+   </section><section><p class="panel-kicker">02 / HAVE AN INVITE?</p><h3>Join their room.</h3><label class="visually-hidden" for="room-input">Invite link or room ID</label><input id="room-input" type="text" placeholder="Paste invite link or room ID" autocomplete="off" spellcheck="false" maxlength="2048"><button id="room-join">Join room ↗</button></section></div>
+   <div class="room-bottom"><p id="room-status" role="status">Not connected</p><button id="room-help" aria-expanded="false" aria-controls="room-network-note">Connection help ↗</button></div>
+   <p id="room-network-note" class="note" hidden></p>
+   <div class="room-actions"><button id="room-retry" hidden>Try again ↗</button><button id="room-leave" hidden>Leave room · continue solo</button></div>
+   <p class="room-privacy">Your processed camera view (including your surroundings), interaction data and captions are shared. Audio is not transmitted to your partner.</p>
+  </div>
  </section>
  <aside id="debug" hidden aria-label="视觉交互测试面板">
   <div class="panel-heading"><strong>视觉交互测试 / 07</strong><button id="debug-close" aria-label="关闭测试面板">×</button></div>

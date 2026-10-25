@@ -17,6 +17,18 @@ const solo=state=>state?.kind==='solo';
 const participantRoles=state=>solo(state)?['A']:['A','B'];
 const participantName=(state,role)=>solo(state)?'你':`Participant ${role}`;
 
+const EN_EXPRESSIONS={neutral:'Neutral',smile:'Smile','open-mouth':'Open mouth',wink:'Wink','eyes-closed':'Eyes closed',pucker:'Pout','brow-furrow':'Frown','squint-smile':'Squint smile','open-smile':'Open smile','closed-laugh':'Laugh','one-brow':'Brow raise','mouth-frown':'Mouth down','raised-eyes':'Wide eyes','closed-pucker':'Closed kiss','eyes-narrow':'Narrow eyes','one-eye-squint':'One-eye squint','gaze-side':'Side glance','gaze-up':'Look up'};
+const englishSeconds=value=>formatSessionDuration(value).replace(' 秒',' s');
+const displayName=(state,role)=>solo(state)?'You':`${role}${state.role===role?' · You':' · Partner'}`;
+export function sessionOverviewHTML(state){
+ const participants=participantSummaries(state),duration=Math.max(state.local?.durationMs||0,state.remote?.durationMs||0);
+ const metric=(label,value)=>`<div class="summary-metric"><dt>${label}</dt><dd>${escapeHTML(value)}</dd></div>`;
+ return `<dl class="summary-shared">${metric('SESSION LENGTH',clock(duration).padStart(5,'0'))}${metric('EXPRESSION TYPES',recordedExpressionCount(state))}</dl>`+participantRoles(state).map(role=>{
+  const item=participants[role];
+  return `<div class="summary-participant" data-role="${role}">${solo(state)?'':`<strong class="summary-role">${displayName(state,role)}</strong>`}<dl>${metric('TRACKING COVERAGE',item?percent(item.durationMs>0?item.validMs/item.durationMs:0):'—')}${metric('TRACKED TIME',item?englishSeconds(item.validMs):'—')}${metric('UNTRACKED TIME',item?englishSeconds(item.missingMs):'—')}</dl>${!item?'<span class="summary-pending">Not received</span>':''}</div>`;
+ }).join('');
+}
+
 export function participantSummaries(state={}){
  const result={A:null,B:null};
  for(const summary of solo(state)?[state.local]:[state.local,state.remote])if(summary&&['A','B'].includes(summary.role))result[summary.role]=summary;
@@ -37,20 +49,6 @@ export function sessionRecordingPresentation(state={}){
   return {label:'已停止 · 本轮',elapsed,status:state.phase==='finishing'?(solo(state)?'正在生成本轮统计，计时已停止。':'正在同步本轮统计，计时已停止。'):`已记录 ${count} 种表情。${failure?failure+' ':''}开始新一轮后继续记录。`,returnLabel:'返回画面（未记录）'};
  }
  return {label:'尚未开始',elapsed:'',status:solo(state)?'开始本轮，记录你的表情变化。':state.connected?'等待双方开始本轮记录。':'双方连接后开始本轮记录。',returnLabel:'返回画面（未记录）'};
-}
-
-function timingDescription(state){
- const parts=[solo(state)?'本轮从开始记录到你结束时计时。识别不到表情不会暂停计时，缺失时间会单独统计。':'本轮从双方确认开始后计时，到任一方结束时停止。识别不到表情不会暂停计时，缺失时间会单独统计。'];
- const timing=state.timing;
- if(timing){
-  const localRole=['A','B'].includes(state.role)?state.role:null,peerRole=localRole?(localRole==='A'?'B':'A'):null;
-  const startText={automatic:solo(state)?'画面开启后自动开始本轮。':'连接后自动开始本轮。',manual:'本轮由本机发起。',peer:'本轮由对方发起。',A:'由 A 发起本轮。',B:'由 B 发起本轮。'}[timing.startedBy];
-  if(startText)parts.push(startText);
-  if(Number.isFinite(timing.requestedAt)&&Number.isFinite(timing.startedAt)&&timing.startedAt>=timing.requestedAt)parts.push(`开始前等待 ${seconds(timing.startedAt-timing.requestedAt)}，未计入本轮。`);
-  const endText={local:solo(state)?'由你结束本轮。':`由${localRole?' '+localRole+'（你）':'你'}结束本轮。`,peer:`由${peerRole?' '+peerRole+'（对方）':'对方'}结束本轮。`,A:'由 A 结束本轮。',B:'由 B 结束本轮。',disconnected:'连接中断后，本轮已停止。','source-off':'画面已关闭，本轮记录已停止。','start-timeout':'双方开始确认超时，本轮未开始。','sync-timeout':'最终同步超时，保留现有统计。'}[timing.endedBy];
-  if(endText)parts.push(endText);
- }
- return parts.join(' ');
 }
 
 /** All 18 categories remain in the chart; unknown time never becomes neutral. */
@@ -116,34 +114,28 @@ export function sessionTimelineData(state){
 export function sessionTimelineSVG(state){
  const data=sessionTimelineData(state),width=1040,height=360,left=62,right=1010,top=40,bottom=290,maxTime=Math.max(data.durationMs,1);
  const x=value=>left+value/maxTime*(right-left),y=value=>bottom-value/100*(bottom-top),n=value=>Number(value.toFixed(3));
- const parts=[`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${solo(state)?'你的':'A、B 的'}表情波动折线图，纵轴 0 至 100，缺失记录处断开"><text x="${left}" y="18" fill="#696960" font-size="11">表情波动指数 · 0–100</text>`];
+ const parts=[`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="${solo(state)?'Your':'A and B'} facial activity, 0 to 100; gaps indicate missing tracking"><text x="${left}" y="18" fill="#696960" font-size="15">Facial activity · 0–100</text>`];
  for(let tick=0;tick<=4;tick++){
   const value=tick*25,py=y(value);
-  parts.push(`<line x1="${left}" y1="${py}" x2="${right}" y2="${py}" stroke="${tick?'#11110f18':INK}"/><text x="48" y="${py+4}" text-anchor="end" fill="#696960" font-size="11">${value}</text>`);
+  parts.push(`<line x1="${left}" y1="${py}" x2="${right}" y2="${py}" stroke="${tick?'#11110f18':INK}"/><text x="48" y="${py+4}" text-anchor="end" fill="#696960" font-size="15">${value}</text>`);
  }
  for(let tick=0;tick<=4;tick++){
   const at=data.durationMs*tick/4,px=x(at),label=(at/1000).toFixed(data.durationMs<20000?1:0);
   if(data.durationMs===0&&tick>0)continue;
-  parts.push(`<line x1="${n(px)}" y1="${bottom}" x2="${n(px)}" y2="${bottom+5}" stroke="${INK}"/><text x="${n(px)}" y="${bottom+23}" text-anchor="middle" fill="#696960" font-size="11">${label}</text>`);
+  parts.push(`<line x1="${n(px)}" y1="${bottom}" x2="${n(px)}" y2="${bottom+5}" stroke="${INK}"/><text x="${n(px)}" y="${bottom+23}" text-anchor="middle" fill="#696960" font-size="15">${label}</text>`);
  }
  for(const series of data.series){
   for(const segment of timelineSegments(series.points)){
    if(segment.length===1){
-    const point=segment[0];parts.push(`<circle data-series="${series.role}" cx="${n(x(point[0]))}" cy="${n(y(point[1]))}" r="2.5" fill="${series.color}" stroke="${INK}" stroke-width=".6"><title>${series.label} · ${(point[0]/1000).toFixed(2)} 秒 · 指数 ${point[1]}</title></circle>`);
+    const point=segment[0];parts.push(`<circle data-series="${series.role}" cx="${n(x(point[0]))}" cy="${n(y(point[1]))}" r="2.5" fill="${solo(state)?INK:series.role==='A'?'#718600':series.color}" stroke="${INK}" stroke-width=".6"><title>${series.label} · ${(point[0]/1000).toFixed(2)} 秒 · 指数 ${point[1]}</title></circle>`);
    }else{
     const path=segment.map((point,index)=>`${index?'L':'M'}${n(x(point[0]))},${n(y(point[1]))}`).join(' '),dash=series.dash?` stroke-dasharray="${series.dash}"`:'';
-    parts.push(`<path d="${path}" fill="none" stroke="${INK}" stroke-opacity=".24" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"${dash}/><path data-series="${series.role}" d="${path}" fill="none" stroke="${series.color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"${dash}><title>${series.label} · 已记录的表情波动</title></path>`);
+    parts.push(`<path d="${path}" fill="none" stroke="${INK}" stroke-opacity=".24" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"${dash}/><path data-series="${series.role}" d="${path}" fill="none" stroke="${solo(state)?INK:series.role==='A'?'#718600':series.color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"${dash}><title>${series.label} · Recorded facial activity</title></path>`);
    }
   }
  }
- parts.push(`<text x="${right}" y="344" text-anchor="end" fill="#696960" font-size="11">本轮时间（秒）</text></svg>`);
+ parts.push(`<text x="${right}" y="344" text-anchor="end" fill="#696960" font-size="15">Session time (s)</text></svg>`);
  return parts.join('');
-}
-
-function timelineNote(state){
- const data=sessionTimelineData(state),resolution=data.series.filter(item=>item.available).map(item=>`${solo(state)?'采样间隔':item.role+' 采样间隔'} ${(item.stepMs/1000).toFixed(item.stepMs%1000?2:0)} 秒`).join('；');
- const coarse=data.series.some(item=>item.stepMs>250)?'较长记录已合并采样，保留区间峰值；含缺失的区间留空。':'';
- return `依据眉眼嘴的运动幅度与变化速度，未采集语音。缺失段断开，0 表示有效的低活动状态。${solo(state)?'':'两条曲线分别从各自本轮开始计时，不代表毫秒级同步。'}${resolution?resolution+'。':''}${coarse}`;
 }
 
 export function sessionTimelineCSV(state){
@@ -270,35 +262,31 @@ export function sessionCSV(state,metric='duration'){
 function chartSVG(state,metric){
  const rows=sessionChartData(state,metric),isCount=metric==='count';
  const maximum=isCount?Math.max(5,Math.ceil(Math.max(...rows.flatMap(row=>[row.A||0,row.B||0]))/5)*5):1;
- const width=1510,height=385,left=55,top=30,bottom=285,step=79;
- const parts=[`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${solo(state)?'你的':'A、B 的'}表情${metricName(metric)}柱状图；完整数据见下方表格">`];
- for(let index=0;index<=4;index++){
-  const value=maximum*index/4,y=bottom-(bottom-top)*index/4;
-  parts.push(`<line x1="${left}" y1="${y}" x2="1490" y2="${y}" stroke="${index?'#11110f18':INK}"/><text x="45" y="${y+4}" text-anchor="end" fill="#696960" font-size="11">${isCount?Number(value.toFixed(1)):Math.round(value*100)+'%'}</text>`);
+ const width=1250,height=250,left=45,top=20,bottom=180,step=66;
+ const parts=[`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="${solo(state)?'Your':'A and B'} expression distribution; full data in measurement details">`];
+ const ticks=isCount?5:4;
+ for(let index=0;index<=ticks;index++){
+  const value=maximum*index/ticks,y=bottom-(bottom-top)*index/ticks;
+  parts.push(`<line x1="${left}" y1="${y}" x2="1235" y2="${y}" stroke="${index?'#11110f18':INK}"/><text x="35" y="${y+4}" text-anchor="end" fill="#696960" font-size="11">${isCount?Number(value.toFixed(1)):Math.round(value*100)+'%'}</text>`);
  }
  rows.forEach((row,index)=>{
   const x=left+index*step+step/2;
   participantRoles(state).forEach((role,offset)=>{
    const value=row[role],h=value===null?0:value/maximum*(bottom-top),bx=solo(state)?x-10.5:x+(offset?-0: -23);
-   if(value!==null)parts.push(`<rect x="${bx}" y="${bottom-h}" width="21" height="${h}" fill="${COLORS[role]}" stroke="${INK}" stroke-width=".6"><title>${solo(state)?'你':role} · ${escapeHTML(row.label)}：${isCount?value+' 次':escapeHTML(percent(value))}</title></rect>`);
+   if(value!==null)parts.push(`<rect x="${bx}" y="${bottom-h}" width="21" height="${h}" fill="${COLORS[role]}" stroke="${INK}" stroke-width=".6"><title>${solo(state)?'You':role} · ${EN_EXPRESSIONS[row.id]}: ${isCount?value+' occurrences':escapeHTML(percent(value))}</title></rect>`);
    parts.push(`<text x="${bx+10.5}" y="${bottom-h-7}" text-anchor="middle" fill="#696960" font-size="9">${value===null?'—':isCount?value:escapeHTML(percent(value))}</text>`);
   });
-  parts.push(`<text x="${x}" y="320" text-anchor="middle" font-size="27">${row.emoji}</text><text x="${x}" y="344" text-anchor="middle" fill="${INK}" font-size="10">${escapeHTML(row.label)}</text>`);
+  const words=EN_EXPRESSIONS[row.id].split(' ');
+  parts.push(`<text x="${x}" y="204" text-anchor="middle" fill="${INK}" font-size="11">${words[0]}${words.length>1?`<tspan x="${x}" dy="13">${words.slice(1).join(' ')}</tspan>`:''}</text>`);
  });
  parts.push('</svg>');return parts.join('');
 }
 
-function summaryCard(role,summary,state){
- if(!summary)return `<article class="session-person" data-role="${role}"><h3><i></i>Participant ${role}</h3><p class="session-big">待同步</p><p>尚未收到对方的本轮统计。</p></article>`;
- const coverage=summary.durationMs>0?summary.validMs/summary.durationMs:0;
- return `<article class="session-person" data-role="${role}"><h3><i></i>${participantName(state,role)}<span class="session-source">${summary.mode==='demo'?'模拟画面':'摄像头'}</span></h3><p class="session-big">${escapeHTML(percent(coverage))}<small>有效识别覆盖率</small></p><dl><div><dt>本轮计时时长</dt><dd>${escapeHTML(seconds(summary.durationMs))}</dd></div><div><dt>有效表情时长</dt><dd>${escapeHTML(seconds(summary.validMs))}</dd></div><div><dt>未识别 / 暂停</dt><dd>${escapeHTML(seconds(summary.missingMs))}</dd></div></dl></article>`;
-}
-
 function detailTable(state){
  const participants=participantSummaries(state);
- return '<table><caption>各表情的完整统计</caption><thead><tr><th scope="col">表情</th>'+participantRoles(state).map(role=>`<th scope="col">${solo(state)?'你':role}的时长 / 占比 / 次数</th>`).join('')+'</tr></thead><tbody>'+EXPRESSION_LIBRARY.map(item=>`<tr><th scope="row">${item.emoji} ${item.label}</th>`+participantRoles(state).map(role=>{
+ return '<table><caption>Complete expression statistics</caption><thead><tr><th scope="col">Expression</th>'+participantRoles(state).map(role=>`<th scope="col">${solo(state)?'You':role} · duration / share / count</th>`).join('')+'</tr></thead><tbody>'+EXPRESSION_LIBRARY.map(item=>`<tr><th scope="row">${item.emoji} ${EN_EXPRESSIONS[item.id]}</th>`+participantRoles(state).map(role=>{
   const summary=participants[role],count=summary?.counts.find(entry=>entry.id===item.id);
-  return `<td>${!summary?'待同步':`${escapeHTML(seconds(count?.durationMs))} / ${summary.validMs>0?escapeHTML(percent(nonnegative(count?.durationMs)/summary.validMs)):'无有效识别'} / ${nonnegative(count?.episodes)} 次`}</td>`;
+  return `<td>${!summary?'Not received':`${escapeHTML(englishSeconds(count?.durationMs))} / ${summary.validMs>0?escapeHTML(percent(nonnegative(count?.durationMs)/summary.validMs)):'No tracked time'} / ${nonnegative(count?.episodes)}`}</td>`;
  }).join('')+'</tr>').join('')+'</tbody></table>';
 }
 
@@ -309,10 +297,10 @@ function saveBlob(blob,name){
 }
 
 function participantLegend(state,line=false){
- return participantRoles(state).map(role=>`<span><i data-role="${role}"${line?' class="session-line-key"':''}></i>${participantName(state,role)}${line&&!solo(state)?role==='A'?' · 实线':' · 虚线':''}</span>`).join('');
+ return participantRoles(state).map(role=>`<span><i data-role="${role}"${line?' class="session-line-key"':''}></i>${displayName(state,role)}${line&&!solo(state)?role==='A'?' · solid':' · dashed':''}</span>`).join('');
 }
 
-export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
+export function mountSessionResults({onStart=()=>{},onFinish=()=>{},onHome=()=>{}}={}){
  const dock=document.createElement('section');dock.id='session-controls';dock.hidden=true;
  dock.setAttribute('aria-label','Recording status');
  dock.innerHTML='<div class="session-recording"><span class="recording-dot" aria-hidden="true"></span><strong id="session-live-label">WAIT</strong><span id="session-live-clock">00:00</span></div>';
@@ -320,14 +308,21 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
  actions.innerHTML='<button id="session-finish">Finish &amp; create ↗</button>';
  const panel=document.createElement('section');panel.id='session-results';panel.hidden=true;
  panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-labelledby','session-results-title');
- panel.innerHTML=`<div class="session-sheet"><header class="session-header"><div><p class="eyebrow">THE BABEL / SESSION PORTRAIT · R08</p><h2 id="session-results-title">这一次，我们留下了什么。</h2></div><button id="session-close" aria-label="关闭统计，返回联机">×</button></header>
-  <p id="session-result-status" role="status"></p><div id="session-summaries"></div><p id="session-timing-note" class="session-note"></p>
-  <section class="session-chart-section"><div class="session-section-heading"><div><p class="eyebrow">01 / EXPRESSION DISTRIBUTION</p><h3>表情分布</h3></div><label>统计口径 <select id="session-metric"><option value="count">按独立出现次数</option><option value="duration">按时长占比</option></select></label></div>
-  <div id="session-bar-legend" class="session-legend"></div><p id="session-chart-description" class="session-note"></p><div id="session-chart" tabindex="0" aria-label="可横向滚动的表情柱状图"></div>
-  <details class="session-details"><summary>查看全部统计数据</summary><div id="session-table"></div></details></section>
-  <section class="session-timeline-section"><div class="session-section-heading"><div><p class="eyebrow">02 / FACIAL ACTIVITY</p><h3>表情波动</h3></div><button id="session-download-timeline-csv">导出曲线 CSV</button></div><div id="session-timeline-legend" class="session-legend"></div><p id="session-timeline-description" class="session-note"></p><div id="session-timeline" tabindex="0" aria-label="表情波动折线图"></div><p id="session-timeline-empty" class="session-note" hidden></p></section>
-  <section class="session-art-section"><div class="session-section-heading"><div><p class="eyebrow">03 / A CONVERSATION PORTRAIT</p><h3>本轮的几何肖像</h3></div><button id="session-download-png">保存纯艺术 PNG ↗</button></div><p id="session-art-description" class="session-note"></p><div class="session-art-wrap"><canvas id="session-art" width="1600" height="1000" aria-label="本轮表情统计生成的纯色几何背景与 emoji 拼贴"></canvas><p id="session-art-empty" hidden>有了有效表情记录，作品就会在这里生成。</p></div></section>
-  <footer class="session-footer"><p class="session-note">记录可见的面部动作。缺失时间单独统计；模拟画面会明确标记。<br>统计和导出在浏览器内完成，刷新页面后本轮记录会清除。</p><div><button id="session-download-csv">导出 CSV</button><button id="session-download-json">导出 JSON</button><button id="session-new-round">开始新一轮</button><button id="session-return">返回画面（未记录）</button></div></footer><p id="session-export-status" role="status"></p></div>`;
+ panel.lang='en';
+ panel.innerHTML=`<div class="session-sheet"><header class="session-header"><svg class="babel-brand compact-brand" viewBox="0 0 760 230" role="img" aria-label="The Babel">
+    <title>The Babel</title>
+    <g fill="currentColor"><path d="M0 0H170V92H93L46 138V92H0Z"/><path d="M62 138H139L185 92V138H232V230H62Z"/></g>
+    <g class="babel-wordmark" fill="currentColor"><text x="280" y="79" font-size="100" textLength="200" lengthAdjust="spacingAndGlyphs">THE</text><text x="280" y="230" font-size="151" textLength="480" lengthAdjust="spacingAndGlyphs">BABEL</text></g>
+   </svg><h2 id="session-results-title">YOUR SESSION, IN ONE FRAME.</h2><button id="session-close" aria-label="Back home">Back home ↗</button></header>
+  <div class="session-dashboard"><div id="session-summaries"></div>
+   <div class="session-main"><section class="session-art-section"><h3>01 / YOUR CONVERSATION PORTRAIT</h3><div class="session-art-wrap"><canvas id="session-art" width="1600" height="1000" aria-label="Geometric portrait generated from this session"></canvas><p id="session-art-empty" hidden>No tracked expressions yet.</p></div><p id="session-art-description" class="session-note">A visual trace of your expressions and movement.</p></section>
+   <div class="session-data"><section class="session-chart-section"><div class="session-section-heading"><h3>02 / EXPRESSION DISTRIBUTION</h3><select id="session-metric" aria-label="Expression chart metric"><option value="count">By occurrences</option><option value="duration">By duration</option></select></div><div class="chart-caption"><div id="session-bar-legend" class="session-legend"></div><p id="session-chart-description" class="session-note"></p></div><div id="session-chart" tabindex="0" aria-label="Expression distribution; scroll horizontally for all categories"></div><div class="chart-scroll-controls"><button id="session-chart-prev" aria-label="Previous expressions">←</button><span>More expressions</span><button id="session-chart-next" aria-label="More expressions">→</button></div></section>
+   <section class="session-timeline-section"><div class="session-section-heading"><h3>03 / FACIAL ACTIVITY</h3><div id="session-timeline-legend" class="session-legend"></div></div><div id="session-timeline" aria-label="Facial activity chart"></div><p id="session-timeline-description" class="session-note"></p><p id="session-timeline-empty" class="session-note" hidden></p></section></div></div>
+   <div class="session-bottom"><p id="session-result-status" role="status"></p><div><button id="session-measurement-open" aria-expanded="false" aria-controls="session-measurement">How this is measured ↗</button><button id="session-download-csv">Export CSV ↓</button></div></div>
+  </div>
+  <footer class="session-footer"><strong>YOU. ME. IN BETWEEN.</strong><div><button id="session-new-round">Create again ↗</button><button id="session-download-png">Save artwork ↓</button></div></footer><p id="session-export-status" role="status"></p>
+  <section id="session-measurement" hidden aria-label="How this is measured"><div class="session-section-heading"><h3>HOW THIS IS MEASURED</h3><button id="session-measurement-close">Back to summary ↗</button></div><p id="session-timing-note" class="session-note"></p><p class="session-note">Occurrences count each visible emoji change once. Duration shares use each participant’s tracked time. Missing tracking is kept separate and never counted as neutral. The facial activity index measures visible facial movement, not feelings or voice. Lines start at each participant’s session start, without millisecond synchronization. Longer sessions aggregate samples while keeping peaks and gaps. The portrait uses observed expression proportions and geometric movement patterns. Results remain in this browser until refresh.</p><div id="session-table"></div><div class="measurement-actions"><button id="session-download-timeline-csv">Export activity CSV ↓</button><button id="session-download-json">Export JSON ↓</button></div></section>
+ </div>`;
  const controlDeck=document.getElementById('control-deck');
  if(controlDeck){controlDeck.prepend(dock);controlDeck.append(actions);}else{document.body.append(dock);document.body.append(actions);}
  document.body.append(panel);
@@ -346,36 +341,36 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
   if(!force&&now-lastDraw<500){clearTimeout(drawTimer);drawTimer=setTimeout(()=>renderResults(true),500-(now-lastDraw));return;}
   clearTimeout(drawTimer);lastDraw=now;lastSignature=signature;
   const participants=participantSummaries(state),summaries=Object.values(participants).filter(Boolean);
-  const source=summaries.some(item=>item.mode==='demo')?(summaries.every(item=>item.mode==='demo')?'模拟演示数据。':'含模拟画面数据；A、B 来源见下方。'):'';
-  const status=state.phase==='recording'?'REC · 正在记录，可继续。':state.phase==='finishing'?(solo(state)?'已停止记录，正在生成本轮统计…':'已停止记录，正在交换最终统计…'):state.complete?(solo(state)?'已停止记录，本轮统计已完成。':'已停止记录，双方最终统计已同步。'):'已停止记录，当前结果包含未完整同步的数据。';
-  $('session-result-status').textContent=`${status} ${source} ${state.statusText||''}`;
+  const source=summaries.some(item=>item.mode==='demo')?' · Simulated inputs':'';
+  const status=state.phase==='recording'?'Recording':state.phase==='finishing'?'Synchronizing':state.complete?'Session complete':'Partial session';
+  const reason={'disconnected':'Partner disconnected','start-timeout':'Start confirmation timed out','sync-timeout':'Final sync timed out'}[state.reason]||'';
+  $('session-result-status').textContent=`${status} · ${solo(state)?'Solo':'Duet'}${source}${reason?' · '+reason:''}`;
   $('session-result-status').dataset.complete=String(Boolean(state.complete));
   panel.dataset.kind=solo(state)?'solo':'duet';
-  $('session-results-title').textContent=solo(state)?'这一次，你留下了什么。':'这一次，我们留下了什么。';
-  $('session-summaries').innerHTML=participantRoles(state).map(role=>summaryCard(role,participants[role],state)).join('');
-  $('session-timing-note').textContent=timingDescription(state);
+  $('session-results-title').textContent=solo(state)?'YOUR SESSION, IN ONE FRAME.':'OUR SESSION, IN ONE FRAME.';
+  $('session-summaries').innerHTML=sessionOverviewHTML(state);
+  $('session-timing-note').textContent=solo(state)?'Recording starts when your camera is ready and stops when you finish or leave. Missing tracking does not pause the session timer.':'Recording begins after both participants confirm and stops when either finishes or disconnects. Each person’s coverage and tracked time are calculated separately. Missing partner data appears as a dash.';
   $('session-bar-legend').innerHTML=participantLegend(state);
-  $('session-chart-description').textContent=metric==='duration'?(solo(state)?'以你的有效表情时长为 100%，按占比排序。横向滚动可查看全部 18 类。':'各自有效识别时长为 100%。按双方占比之和排序；零点和纵轴尺度一致。横向滚动可查看全部 18 类。'):`屏幕 emoji 每次切换立即记 1 次，短暂出现也计入；持续同一表情不按帧重复计数。${solo(state)?'按出现次数排序。':'按双方次数之和排序，A、B 使用同一纵轴。'}横向滚动可查看全部 18 类。`;
+  const occurrences=summaries.reduce((total,item)=>total+item.counts.reduce((n,c)=>n+c.episodes,0),0);
+  $('session-chart-description').textContent=`${metric==='count'?occurrences+' occurrences':'Share of tracked time'} · ${recordedExpressionCount(state)} expression types`;
   $('session-chart').innerHTML=chartSVG(state,metric);
   $('session-table').innerHTML=detailTable(state);
   const timeline=sessionTimelineData(state);
   $('session-timeline-legend').innerHTML=participantLegend(state,true);
-  $('session-timeline-description').textContent=timelineNote(state);
+  $('session-timeline-description').textContent='0–100 index · gaps indicate missing tracking';
   $('session-timeline').innerHTML=sessionTimelineSVG(state);
-  const unavailable=timeline.series.filter(item=>!item.available).map(item=>item.label);
+  const unavailable=timeline.series.filter(item=>!item.available).map(item=>displayName(state,item.role));
   $('session-timeline-empty').hidden=timeline.hasValues&&!unavailable.length;
-  $('session-timeline-empty').textContent=!timeline.hasTimeline?'本轮没有曲线记录。开始新一轮后即可记录表情波动。':!timeline.hasValues?'本轮曲线尚无有效面部动作信号；缺失时间保留为空白。':unavailable.length?`${unavailable.join('、')} 的曲线尚未收到；其余已记录曲线显示如下。`:'';
+  $('session-timeline-empty').textContent=!timeline.hasTimeline?'No activity record for this session.':!timeline.hasValues?'No tracked facial activity; gaps remain empty.':unavailable.length?`Activity not received: ${unavailable.join(', ')}.`:'';
   $('session-download-timeline-csv').disabled=!timeline.hasTimeline;
-  const artData=sessionArtProfiles(state);
-  const backgroundNote=artData.evidenceMs>0?'背景由每 2 秒的有效面部动作记录生成：占比决定面积，强度决定大小与明暗，变化决定旋转。'+(artData.missingRoles.length?'部分参与者暂无背景记录，仅使用已收到的数据。':''):'本轮暂无可用的几何背景记录；开始新一轮后即可生成。';
-  $('session-art-description').textContent=`${solo(state)?'由你的本轮记录生成。':'左侧 A · 右侧 B，两人各分配相同 emoji 总面积。'}单个 emoji 的面积与${metric==='duration'?'时长占比':'各表情出现次数的占比'}成正比。${backgroundNote} PNG 仅包含艺术画面。`;
+  $('session-art-description').textContent=solo(state)?'A visual trace of your expressions and movement.':'A on the left. B on the right. A shared visual trace.';
   const circles=drawSessionArtwork($('session-art'),state,metric);
   $('session-art-empty').hidden=Boolean(circles.length);$('session-download-png').disabled=!circles.length;
   $('session-download-csv').disabled=!hasData();$('session-download-json').disabled=!hasData();
  }
  function close(){
   if(panel.hidden)return;
-  panel.hidden=true;clearTimeout(drawTimer);previousFocus?.focus?.();
+  panel.hidden=true;$('session-measurement').hidden=true;$('session-measurement-open').setAttribute('aria-expanded','false');clearTimeout(drawTimer);previousFocus?.focus?.();
  }
  function open(){
   if(!hasData())return;
@@ -391,10 +386,9 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
   dock.dataset.phase=state.phase;actions.hidden=dock.hidden;
   $('session-live-label').textContent=state.phase==='recording'?'REC':['complete','finishing'].includes(state.phase)?'STOP':'WAIT';
   $('session-live-clock').textContent=(presentation.elapsed||'0:00').padStart(5,'0');
-  $('session-return').textContent=presentation.returnLabel;
-  $('session-close').setAttribute('aria-label',`关闭统计，${presentation.returnLabel}`);
   $('session-new-round').hidden=active;$('session-new-round').disabled=!state.canStart;
-  $('session-new-round').title=state.canStart?'开始新的本轮记录':solo(state)?'开启画面后可开始新一轮':'由房主 A 发起新一轮';
+  $('session-new-round').textContent=!solo(state)&&state.connected&&state.role==='B'?'Waiting for host':'Create again ↗';
+  $('session-new-round').title=state.canStart?'Start a new session':solo(state)?'Open your camera to create again':'Waiting for the host to start a new session';
   $('session-finish').disabled=!(state.canFinish||state.phase==='complete'&&hasData());
   $('session-finish').textContent=state.phase==='finishing'?'Creating…':state.phase==='starting'?'Starting…':'Finish & create ↗';
   if(state.phase==='complete'&&(previousPhase!=='complete'||shownSession!==state.sessionId)){shownSession=state.sessionId;open();}
@@ -402,9 +396,9 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
  }
  const escape=e=>{
   if(panel.hidden)return;
-  if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}
+  if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();if(!$('session-measurement').hidden){$('session-measurement-close').onclick();}else{close();onHome();}}
   if(e.key==='Tab'){
-   const nodes=[...panel.querySelectorAll('button:not([disabled]),select,summary,[tabindex="0"]')].filter(node=>!node.hidden);
+   const nodes=[...panel.querySelectorAll('button:not([disabled]),select,summary,[tabindex="0"]')].filter(node=>!node.hidden&&!node.closest('[hidden]'));
    const first=nodes[0],last=nodes[nodes.length-1];
    if(e.shiftKey&&(document.activeElement===first||!panel.contains(document.activeElement))){e.preventDefault();last?.focus();}
    else if(!e.shiftKey&&(document.activeElement===last||!panel.contains(document.activeElement))){e.preventDefault();first?.focus();}
@@ -415,7 +409,11 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
  panel.addEventListener('keydown',event=>event.stopPropagation());
  $('session-finish').onclick=()=>{if(state.phase==='complete'&&hasData())open();else if(state.canFinish)onFinish();};
  $('session-new-round').onclick=()=>{if(!state.canStart)return;close();onStart();};
- $('session-close').onclick=close;$('session-return').onclick=close;
+ $('session-close').onclick=()=>{close();onHome();};
+ $('session-measurement-open').onclick=()=>{$('session-measurement').hidden=false;$('session-measurement-open').setAttribute('aria-expanded','true');$('session-measurement-close').focus();};
+ $('session-measurement-close').onclick=()=>{$('session-measurement').hidden=true;$('session-measurement-open').setAttribute('aria-expanded','false');$('session-measurement-open').focus();};
+ $('session-chart-prev').onclick=()=>$('session-chart').scrollBy({left:-300,behavior:'smooth'});
+ $('session-chart-next').onclick=()=>$('session-chart').scrollBy({left:300,behavior:'smooth'});
  $('session-metric').onchange=e=>{metric=e.target.value==='count'?'count':'duration';renderResults(true);};
  $('session-download-json').onclick=()=>saveBlob(new Blob([JSON.stringify(sessionExportData(state,metric),null,2)],{type:'application/json'}),name('json'));
  $('session-download-csv').onclick=()=>saveBlob(new Blob([sessionCSV(state,metric)],{type:'text/csv;charset=utf-8'}),name('csv'));
@@ -423,8 +421,8 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{}}={}){
  $('session-download-png').onclick=()=>{
   renderResults(true);
   const filename=name('png');
-  try{$('session-art').toBlob(blob=>{if(blob){saveBlob(blob,filename);$('session-export-status').textContent='PNG 已生成，包含纯艺术画面。';}else $('session-export-status').textContent='导出暂未成功，请重试。';},'image/png');}
-  catch{$('session-export-status').textContent='浏览器暂时无法导出 PNG，请重试。';}
+  try{$('session-art').toBlob(blob=>{if(blob){saveBlob(blob,filename);$('session-export-status').textContent='Artwork saved.';}else $('session-export-status').textContent='Export failed. Please try again.';},'image/png');}
+  catch{$('session-export-status').textContent='Could not export PNG. Please try again.';}
  };
  return {update,open,close,get panelOpen(){return !panel.hidden;},destroy(){destroyed=true;clearTimeout(drawTimer);document.removeEventListener('keydown',escape,true);dock.remove();actions.remove();panel.remove();}};
 }

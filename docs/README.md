@@ -15,6 +15,7 @@
 
 ## Verification
 
+- [Desktop summary, connection and Back home](verification/desktop-panels.md)
 - [Live toolbar redesign](verification/live-toolbar.md)
 - [Homepage redesign](verification/homepage-redesign.md)
 
