@@ -1,5 +1,7 @@
 # The Babel — two-person connection test (R07.9)
 
+R12.3 adds optional partial/final transcripts and translated messages to the existing reliable data channel. Each device uses its own microphone; the WebRTC media stream remains video-only. See [SPEECH.md](SPEECH.md) for opt-in behavior, access-code setup and lifecycle. Earlier camera-only descriptions below refer to the visual/media transport.
+
 Each computer runs the existing R07.6 single-person vision pipeline. The local artwork canvas is captured at up to 1280×720 / 20 fps and sent with WebRTC. The remote artwork is played directly: no second face, hand or segmentation inference is run for the remote participant. A is always on the left and B on the right.
 
 ## Try it

@@ -1,4 +1,5 @@
 import {normalizeSessionMessage} from './session-protocol.js';
+import {normalizeMeaningMessage,meaningMessageFits} from './meaning-protocol.js';
 
 /** Compact, versioned messages for the two-person room. No images or landmarks. */
 export const ROOM_PROTOCOL=1;
@@ -26,7 +27,7 @@ export function normalizeSnapshot(input){
   const actions={};for(const key of ACTION_KEYS)if(Number.isFinite(raw.actions?.[key]))actions[key]=clamp(raw.actions[key]);
   expression={id:raw.id,score:clamp(raw.score),actions};
  }
- return {mode:input.mode,present:input.present,hands,expression,aspect:Number.isFinite(input.aspect)&&input.aspect>0?Math.max(.2,Math.min(5,input.aspect)):16/9};
+ return {mode:input.mode,present:input.present,hands,expression,...(['zh','en','ja','es'].includes(input.language)?{language:input.language}:{}),aspect:Number.isFinite(input.aspect)&&input.aspect>0?Math.max(.2,Math.min(5,input.aspect)):16/9};
 }
 
 export function readMessage(data){
@@ -40,6 +41,10 @@ export function readMessage(data){
   case 'ping':case 'pong':return Number.isFinite(data.at)&&data.at>=0?{v:1,type:data.type,at:data.at}:null;
   case 'session':{
    const body=normalizeSessionMessage(data.body);return body?{v:1,type:'session',body}:null;
+  }
+  case 'meaning':{
+   if(!Number.isSafeInteger(data.seq)||data.seq<0||!meaningMessageFits(data))return null;
+   const body=normalizeMeaningMessage(data.body);return body?{v:1,type:'meaning',seq:data.seq,body}:null;
   }
   case 'state':{
    if(!Number.isSafeInteger(data.seq)||data.seq<0||!Number.isFinite(data.at)||data.at<0)return null;

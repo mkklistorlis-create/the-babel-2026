@@ -5,11 +5,37 @@
   "outputDirectory": "dist",
   "installCommand": "npm install --ignore-scripts",
   "headers": [
-    {"source": "/(.*)", "headers": [
-      {"key": "X-Content-Type-Options", "value": "nosniff"},
-      {"key": "Referrer-Policy", "value": "same-origin"},
-      {"key": "Permissions-Policy", "value": "camera=(self), microphone=()"}
-    ]},
-    {"source": "/vendor/(.*)", "headers": [{"key": "Cache-Control", "value": "public, max-age=3600, must-revalidate"}]}
-  ]
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(self), microphone=(self)"
+        }
+      ]
+    },
+    {
+      "source": "/vendor/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "fluid": true,
+  "functions": {
+    "api/semantic-stream.js": {
+      "maxDuration": 300
+    }
+  }
 }
