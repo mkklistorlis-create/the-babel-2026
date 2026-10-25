@@ -69,3 +69,8 @@ Breathing now takes 3.8 seconds per cycle with an opacity multiplier from 0.25 t
 Each orbit now has independent seeded smooth-noise translation and rotation: up to 11 × 9 reference units of drift and ±3.2° tilt. Slow wandering is mixed with a smaller faster component, fading in at startup. Time-based interpolation avoids frame-to-frame random jitter. Pause freezes phase; reduced motion disables drift. Diagnostics report the actual displaced centers. Existing light breathing remains separate from recognition/statistics.
 
 Ellipses extend from 260 × 38 to 300 × 34 reference radii, with participant reach increased to 2.9 shoulder spans or 3.4 face widths. The final session artwork is unchanged. Verified 20 orbit tests, production build, and WebGL motion preview with no page errors.
+
+
+## R11.5 — 150% overall size
+
+Multiply the fitted orbit scale by 1.5, preserving geometry, neck tracking, drift and breathing parameters. Enlargement applies after viewport fitting; arcs may extend beyond the camera pane.

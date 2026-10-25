@@ -116,7 +116,7 @@ test('placement retains the neck estimate at crop edges rather than moving it up
     const p=projection(viewport),head=p.box(face(0,x,y).faceBBox),center=p.point(x,y);
     close(placement.x,center.x);close(placement.y,head.y+head.height*1.08);
     assert.equal(placement.kind,'neck-face-estimate');
-    assert.ok(bounds.width*placement.scale<=viewport.width);
+    assert.ok(bounds.width*placement.scale<=viewport.width*1.5);
 
    }
    const person=face(0),largerFace={...person,faceBBox:{x:.25,y:.1,width:.5,height:.5}};
@@ -164,7 +164,7 @@ test('splitting a 1440 px stage into two 720 px panes retains ring presence at t
   assert.ok(bounds.width*full.scale>=solo.width*.5,`${family} keeps its extended reach in the solo view`);
   assert.ok(bounds.width*half.scale>duet.width*.65,`${family} remains prominent after its wider border is fitted`);
   assert.ok(bounds.width*half.scale>=duet.width*.65);
-  assert.ok(half.x+bounds.minX*half.scale>=0&&half.x+bounds.maxX*half.scale<=duet.width);
+  assert.ok(half.x+bounds.minX*half.scale/1.5>=0&&half.x+bounds.maxX*half.scale/1.5<=duet.width);
 
  }
 });

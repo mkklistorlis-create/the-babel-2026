@@ -136,7 +136,8 @@ export function affectRingPlacement(person,projection,viewport,bounds,now){
  // compress the orbit vertically or move its centre toward the face to fit.
  const head=projection.box(person.faceBBox);
  const desiredWidth=chest.shoulderSpan?chest.shoulderSpan*2.9:head.width*3.4;
- const scale=Math.min(desiredWidth/600,(width-padding*2)/Math.max(1,2*Math.max(Math.abs(bounds.minX),Math.abs(bounds.maxX))));
+ // Apply the requested 50% enlargement after fitting, so narrow panes do not undo it.
+ const scale=1.5*Math.min(desiredWidth/600,(width-padding*2)/Math.max(1,2*Math.max(Math.abs(bounds.minX),Math.abs(bounds.maxX))));
  if(!(scale>0))return null;
  return {...chest,scale};
 }
