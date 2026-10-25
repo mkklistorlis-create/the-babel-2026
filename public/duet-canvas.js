@@ -7,7 +7,7 @@ import {ParticleMotion} from './particle-motion.js';
 import {HandTrailTracker} from './hand-trails.js';
 import {FingertipInk} from './fingertip-ink.js';
 import {SixSevenOverlay} from './six-seven-overlay.js';
-import {AffectRings} from './affect-rings.js';
+import {AffectBackdrop} from './affect-backdrop.js';
 const clamp=(v,lo=0,hi=1)=>Math.max(lo,Math.min(hi,Number(v)||0));
 const mix=(a,b,t)=>a+(b-a)*t;
 const FINITE=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
@@ -116,7 +116,7 @@ export class DuetCanvas{
   })));this.particles.frustumCulled=false;this.particles.renderOrder=3;this.scene.add(this.particles);
   this.fingertipInk=new FingertipInk(this.scene,{lifetimeMs:this.handTrails.lifetimeMs,order:10});
   this.sixSeven=new SixSevenOverlay(this.scene);
-  this.affectRings=new AffectRings(this.scene,{order:-30});
+  this.affectBackdrop=new AffectBackdrop(this.scene,{order:-30});
   this.motionQuery=window.matchMedia('(prefers-reduced-motion: reduce)');this.reducedMotion=this.motionQuery.matches;
   this.motionChanged=e=>{this.reducedMotion=e.matches;};this.motionQuery.addEventListener('change',this.motionChanged);
   this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(canvas);this.resize();
@@ -134,12 +134,12 @@ export class DuetCanvas{
   if(previous&&previous!==this.state.matchedFrame)previous.close?.();
   const owner=this.state.ownershipEpoch??this.state.owner;
   if(owner!==oldOwner||this.state.interactionsEnabled===false||this.state.occupancy==='multiple'){
-   this.affectRings?.clear();
+   this.affectBackdrop?.clear();
    this.handTrails?.reset();this.fingertipInk?.clear();if(this.clip){this.clip.group.visible=false;this.clip.anchor=null;}
   }
   const gestureOwner=this.state.gestureOwner??owner;
   if(gestureOwner!==oldGestureOwner||(this.state.gestureEnabled??this.state.interactionsEnabled)===false||this.state.occupancy==='multiple'||next.mode==='idle')this.sixSeven?.clear();
-  if(next.mode==='idle'){this.affectRings?.clear();this.particleMotion?.reset();this.particles&&(this.particles.visible=false);}
+  if(next.mode==='idle'){this.affectBackdrop?.clear();this.particleMotion?.reset();this.particles&&(this.particles.visible=false);}
  }
  setPointer(x,y){this.pointer={x:clamp(x),y:clamp(y)};}
  resize(){
@@ -147,7 +147,7 @@ export class DuetCanvas{
   this.dpr=Math.min(window.devicePixelRatio||1,2);this.renderer.setPixelRatio(this.dpr);this.renderer.setSize(this.width,this.height,false);
   Object.assign(this.camera,{left:0,right:this.width,top:0,bottom:this.height});this.camera.updateProjectionMatrix();
   this.particleMotion.resize(this.width,this.height);this.handTrails.reset();this.fingertipInk.clear();this.sixSeven.reproject();this.clip.anchor=null;
-  this.affectRings.reproject();
+  this.affectBackdrop.reproject();
   this.particles.material.uniforms.uDpr.value=this.dpr;
  }
  updateCameraLayer(frame,mask){
@@ -236,7 +236,7 @@ export class DuetCanvas{
   if(s.mode==='demo'&&person)({frame,mask}=this.demoFrame(person,now));
   if(s.mode==='idle'){frame=null;mask=null;}
   const projection=this.updateCameraLayer(frame,mask);
-  this.affectRings?.update(person,projection,now,{expression:s.expression,enabled,owner:s.ownershipEpoch??s.owner??person?.id,
+  this.affectBackdrop?.update(person,projection,now,{expression:s.expression,enabled,owner:s.ownershipEpoch??s.owner??person?.id,
    paused:s.paused,reducedMotion:this.reducedMotion,viewport:{width:this.width,height:this.height}});
   if(projection)this.updateParticles(frame,now);
   else this.particleMotion.reset();
@@ -252,6 +252,6 @@ export class DuetCanvas{
   this.canvas.removeEventListener('webglcontextlost',this.contextLost);this.canvas.removeEventListener('webglcontextrestored',this.contextRestored);
   for(const mesh of[this.cameraImage,this.cameraMask,this.particles,this.clip.mesh])disposeMesh(mesh);
   this.cameraTexture?.dispose();this.maskTexture?.dispose();this.state.matchedFrame?.close?.();this.state.matchedFrame=null;
-  this.affectRings.dispose();this.sixSeven.dispose();this.fingertipInk.dispose();this.handTrails.reset();this.particleMotion.reset();this.renderer.dispose();this.renderer.forceContextLoss();
+  this.affectBackdrop.dispose();this.sixSeven.dispose();this.fingertipInk.dispose();this.handTrails.reset();this.particleMotion.reset();this.renderer.dispose();this.renderer.forceContextLoss();
  }
 }

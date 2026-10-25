@@ -6,7 +6,7 @@ import {HandTrailTracker} from '../public/hand-trails.js';
 import {ParticleMotion} from '../public/particle-motion.js';
 import {FingertipInk} from '../public/fingertip-ink.js';
 import {SixSevenOverlay} from '../public/six-seven-overlay.js';
-import {AffectRings} from '../public/affect-rings.js';
+import {AffectBackdrop} from '../public/affect-backdrop.js';
 
 // These exercise actual scene state and sampling math, with GPU rendering
 // stubbed. Physical-camera and WebGL shader validation remain separate checks.
@@ -19,8 +19,8 @@ function harness(){
  Object.assign(r,{width:1440,height:900,reducedMotion:false,scene:new THREE.Scene(),camera:new THREE.OrthographicCamera(),renderer:{render(){}},
   particleMotion:new ParticleMotion(),handTrails:new HandTrailTracker(),particleGeometry:new THREE.BufferGeometry(),particles:mesh(),clip:{group,mesh:clipMesh,anchor:null,key:''},
   state:{mode:'live',count:1,people:getDemoPeople(),occupancy:'single',interactionsEnabled:true,ownershipEpoch:1,expression:{id:'smile',emoji:'😀',visible:true}},
- });r.particleMotion.resize(1440,900);r.fingertipInk=new FingertipInk(r.scene,{order:10});r.sixSeven=new SixSevenOverlay(r.scene);r.affectRings=new AffectRings(r.scene);
- return {r,cleanup(){for(const m of[r.cameraImage,r.cameraMask,r.particles,r.clip.mesh]){m?.geometry.dispose();m?.material.map?.dispose();m?.material.dispose();}r.particleGeometry.dispose();r.affectRings.dispose();r.sixSeven.dispose();r.fingertipInk.dispose();r.maskTexture?.dispose();r.state.matchedFrame?.close?.();globalThis.document=original;globalThis.Path2D=originalPath;}};
+ });r.particleMotion.resize(1440,900);r.fingertipInk=new FingertipInk(r.scene,{order:10});r.sixSeven=new SixSevenOverlay(r.scene);r.affectBackdrop=new AffectBackdrop(r.scene);
+ return {r,cleanup(){for(const m of[r.cameraImage,r.cameraMask,r.particles,r.clip.mesh]){m?.geometry.dispose();m?.material.map?.dispose();m?.material.dispose();}r.particleGeometry.dispose();r.affectBackdrop.dispose();r.sixSeven.dispose();r.fingertipInk.dispose();r.maskTexture?.dispose();r.state.matchedFrame?.close?.();globalThis.document=original;globalThis.Path2D=originalPath;}};
 }
 const frame=()=>({width:640,height:360,close(){}});
 const mask=()=>({width:3,height:2,data:new Uint8Array([0,48,128,255,255,0]),encoding:'alpha8',complete:true});
@@ -84,14 +84,14 @@ test('hairclip sits on measured upper-right temple and rotates as a plane with t
  }finally{cleanup();}
 });
 
-test('affect rings are composited behind the original body without replacing camera, emoji or hand overlays',()=>{
+test('expression collage is composited behind the original body without replacing camera, emoji or hand overlays',()=>{
  const {r,cleanup}=harness();try{
   r.setState({matchedFrame:frame(),foregroundMask:mask(),expression:{id:'smile',emoji:'😀',score:.8,visible:true,demo:true}});r.draw(100,.016);
-  assert.equal(r.affectRings.stats.visible,true);assert.equal(r.affectRings.mesh.renderOrder,-30);
-  assert.ok(r.cameraImage.renderOrder<r.affectRings.mesh.renderOrder);assert.ok(r.affectRings.mesh.renderOrder<r.cameraMask.renderOrder);
+  assert.equal(r.affectBackdrop.stats.visible,true);assert.equal(r.affectBackdrop.mesh.renderOrder,-30);
+  assert.ok(r.cameraImage.renderOrder<r.affectBackdrop.mesh.renderOrder);assert.ok(r.affectBackdrop.mesh.renderOrder<r.cameraMask.renderOrder);
   assert.equal(r.cameraImage.visible,true);assert.equal(r.cameraMask.visible,true);assert.equal(r.particles.visible,true);assert.equal(r.clip.group.visible,true);
-  r.setState({occupancy:'multiple',interactionsEnabled:false});assert.equal(r.affectRings.mesh.visible,false);
-  r.draw(150,.016);assert.equal(r.affectRings.stats.visible,false);assert.equal(r.cameraImage.visible,true);
+  r.setState({occupancy:'multiple',interactionsEnabled:false});assert.equal(r.affectBackdrop.mesh.visible,false);
+  r.draw(150,.016);assert.equal(r.affectBackdrop.stats.visible,false);assert.equal(r.cameraImage.visible,true);
  }finally{cleanup();}
 });
 

@@ -1,4 +1,9 @@
-# The Babel — R11.0 chest orbits and conversation portraits
+# The Babel — R12 expression background collage
+
+R12 replaces the live orbit layer with expression-driven background blocks, open line bundles, halftone and hatching. Five existing palettes blend smoothly with the facial-action values; seeded motion creates changing screen-space compositions behind the participant. No additional model or audio input is introduced. Final solo/duet artwork and statistics remain unchanged. See [BACKDROP-VISUALS.md](BACKDROP-VISUALS.md) for the algorithm and validation.
+
+## Previous graphic versions
+
 
 R11.0 anchors three tilted expression orbits to the middle of the chest using the existing shoulder/hip landmarks. Far arcs pass behind the participant, near arcs pass in front of the body, and all five families receive a small 5.6-second breathing-light cycle. No recognition thresholds or additional models are introduced.
 
