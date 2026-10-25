@@ -307,13 +307,13 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{},onHome=()=>{
  const actions=document.createElement('div');actions.className='session-control-actions';actions.hidden=true;
  actions.innerHTML='<button id="session-finish">Finish &amp; create ↗</button>';
  const panel=document.createElement('section');panel.id='session-results';panel.hidden=true;
- panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-labelledby','session-results-title');
+ panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label','Session summary');
  panel.lang='en';
  panel.innerHTML=`<div class="session-sheet"><header class="session-header"><svg class="babel-brand compact-brand" viewBox="0 0 760 230" role="img" aria-label="The Babel">
     <title>The Babel</title>
     <g fill="currentColor"><path d="M0 0H170V92H93L46 138V92H0Z"/><path d="M62 138H139L185 92V138H232V230H62Z"/></g>
     <g class="babel-wordmark" fill="currentColor"><text x="280" y="79" font-size="100" textLength="200" lengthAdjust="spacingAndGlyphs">THE</text><text x="280" y="230" font-size="151" textLength="480" lengthAdjust="spacingAndGlyphs">BABEL</text></g>
-   </svg><h2 id="session-results-title">YOUR SESSION, IN ONE FRAME.</h2><button id="session-close" aria-label="Back home">Back home ↗</button></header>
+   </svg><button id="session-close" aria-label="Back home">Back home ↗</button></header>
   <div class="session-dashboard"><div id="session-summaries"></div>
    <div class="session-main"><section class="session-art-section"><h3>01 / YOUR CONVERSATION PORTRAIT</h3><div class="session-art-wrap"><canvas id="session-art" width="1600" height="1000" aria-label="Geometric portrait generated from this session"></canvas><p id="session-art-empty" hidden>No tracked expressions yet.</p></div><p id="session-art-description" class="session-note">A visual trace of your expressions and movement.</p></section>
    <div class="session-data"><section class="session-chart-section"><div class="session-section-heading"><h3>02 / EXPRESSION DISTRIBUTION</h3><select id="session-metric" aria-label="Expression chart metric"><option value="count">By occurrences</option><option value="duration">By duration</option></select></div><div class="chart-caption"><div id="session-bar-legend" class="session-legend"></div><p id="session-chart-description" class="session-note"></p></div><div id="session-chart" tabindex="0" aria-label="Expression distribution; scroll horizontally for all categories"></div><div class="chart-scroll-controls"><button id="session-chart-prev" aria-label="Previous expressions">←</button><span>More expressions</span><button id="session-chart-next" aria-label="More expressions">→</button></div></section>
@@ -347,7 +347,6 @@ export function mountSessionResults({onStart=()=>{},onFinish=()=>{},onHome=()=>{
   $('session-result-status').textContent=`${status} · ${solo(state)?'Solo':'Duet'}${source}${reason?' · '+reason:''}`;
   $('session-result-status').dataset.complete=String(Boolean(state.complete));
   panel.dataset.kind=solo(state)?'solo':'duet';
-  $('session-results-title').textContent=solo(state)?'YOUR SESSION, IN ONE FRAME.':'OUR SESSION, IN ONE FRAME.';
   $('session-summaries').innerHTML=sessionOverviewHTML(state);
   $('session-timing-note').textContent=solo(state)?'Recording starts when your camera is ready and stops when you finish or leave. Missing tracking does not pause the session timer.':'Recording begins after both participants confirm and stops when either finishes or disconnects. Each person’s coverage and tracked time are calculated separately. Missing partner data appears as a dash.';
   $('session-bar-legend').innerHTML=participantLegend(state);

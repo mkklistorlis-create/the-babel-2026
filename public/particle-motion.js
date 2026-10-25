@@ -4,8 +4,8 @@
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const TAU = Math.PI * 2;
 const FLOW_STEP = 10;
-const SPACING = 9.5;
-const SIZE_MIN = 10, SIZE_RANGE = 18;
+const SPACING = 13;
+const SIZE_MIN = 14, SIZE_RANGE = 24;
 const MOTION_GAIN = 4.2, MOTION_LIMIT = 60;
 const SEARCH = [-4, -2, 0, 2, 4];
 

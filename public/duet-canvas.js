@@ -178,7 +178,7 @@ export class DuetCanvas{
   this.particleMotion.setMask({width:mask.width,height:mask.height,data:this.maskTexture.image.data});
   const projection=cameraProjection(this.width,this.height,frame.width,frame.height);
   // Square cells use a screen-pixel grid, irrespective of portrait/landscape crop.
-  this.cameraMask.material.uniforms.uGrid.value.set(projection.width/18,projection.height/18);
+  this.cameraMask.material.uniforms.uGrid.value.set(projection.width/24,projection.height/24);
   for(const mesh of[this.cameraImage,this.cameraMask]){mesh.visible=true;mesh.position.set(this.width/2,this.height/2,0);mesh.scale.set(-projection.width,-projection.height,1);}
   return projection;
  }
