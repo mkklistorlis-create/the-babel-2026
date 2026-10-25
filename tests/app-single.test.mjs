@@ -32,7 +32,7 @@ function appHarness({startError,recordSessions=false}={}){
 
 test('entry starts camera and speech once while renderer stays independent',async()=>{
  const h=appHarness();await h.start();h.observation('single');h.frame(200);
- assert.equal(h.starts,1);assert.equal(h.speechStarts,1);assert.equal(h.networkCalls,0);
+ assert.equal(h.nodes.has('demo'),false);assert.equal(h.starts,1);assert.equal(h.speechStarts,1);assert.equal(h.networkCalls,0);
  assert.equal(h.renderer.state.interactionsEnabled,true);assert.equal(h.renderer.state.people[0].hands.length,2);
  assert.equal(h.context.window.betweenUs.diagnostics.microphone,false);
  assert.equal(h.context.window.betweenUs.diagnostics.semantics,false);
@@ -78,7 +78,7 @@ test('six/seven has a bounded CPU gesture budget independent of the face display
 });
 
 test('demo is explicitly simulated, has two hands and cycles through expression library',()=>{
- const h=appHarness();h.nodes.get('demo').onclick();h.frame(200);
+ const h=appHarness();h.roomOptions.prepareSource('demo');h.frame(200);
  assert.equal(h.renderer.state.mode,'demo');assert.equal(h.renderer.state.count,1);assert.equal(h.renderer.state.people[0].hands.length,2);
  const before=h.renderer.state.expression.id;h.nodes.get('stage').onpointerdown({clientX:300,clientY:200});h.frame(300);
  assert.notEqual(h.renderer.state.expression.id,before);assert.equal(h.renderer.state.expression.visible,true);assert.equal(h.starts,0);
@@ -134,7 +134,7 @@ function startStatistics(h){
 }
 
 test('app forwards rapid demo changes before the next statistics tick or rendered frame',()=>{
- const h=appHarness({recordSessions:true});h.nodes.get('demo').onclick();h.frame(200);startStatistics(h);
+ const h=appHarness({recordSessions:true});h.roomOptions.prepareSource('demo');h.frame(200);startStatistics(h);
  h.setTime(240);h.nodes.get('demo-expression').onchange({target:{value:'wink'}});
  h.setTime(270);h.nodes.get('demo-expression').onchange({target:{value:'smile'}});
  h.setTime(290);h.nodes.get('demo-expression').onchange({target:{value:'neutral'}});

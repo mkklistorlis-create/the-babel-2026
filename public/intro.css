@@ -1,0 +1,29 @@
+@font-face{font-family:Babel Inter;src:url('/assets/inter-400.ttf') format('truetype');font-weight:400;font-display:swap}
+@font-face{font-family:Babel Inter;src:url('/assets/inter-700.ttf') format('truetype');font-weight:700;font-display:swap}
+/* The welcome screen owns its palette and typography; the live artwork keeps its own styles. */
+#intro{--intro-paper:#e5ff4a;--intro-ink:#171715;position:fixed;inset:0;z-index:4;display:grid;place-items:center;overflow-y:auto;padding:80px 24px 60px;background:var(--intro-paper);color:var(--intro-ink);font-family:'Babel Inter',Arial,sans-serif}
+#intro .intro-content{width:min(760px,50vw);margin:auto;flex:none}
+.babel-brand{display:block;width:100%;height:auto;overflow:visible}
+.babel-wordmark{font-family:'Arial Black','Babel Inter',Arial,sans-serif;font-weight:900;letter-spacing:-.06em;font-synthesis:weight}
+#intro h1.intro-tagline{margin:54px 0 28px;text-align:center;font-size:clamp(23px,2.45vw,37px);line-height:1.1;font-weight:700;letter-spacing:-.045em;white-space:nowrap}
+#intro .intro-controls{width:84.5%;margin:0 auto}
+.intro-languages{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+#intro button{border:1px solid var(--intro-ink);border-radius:0;box-shadow:none;color:var(--intro-ink);font-family:inherit;transition:background-color .12s,color .12s}
+#intro .intro-languages button{min-width:0;padding:12px 5px;background:#f5f4ec;font-size:14px;font-weight:400;line-height:1.2}
+#intro .intro-languages button+button{border-left:0}
+#intro .intro-languages button[aria-pressed=true]{background:var(--intro-ink);color:#f5f4ec}
+#intro .intro-languages button:hover:not([aria-pressed=true]){background:#fff}
+.intro-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:24px}
+#intro .intro-actions button{min-width:0;padding:18px 8px;font-size:16px;font-weight:700;line-height:1.2;white-space:nowrap}
+#intro #start{background:transparent}
+#intro #room-open-intro{background:#f5f4ec}
+#intro .intro-actions button:hover{background:var(--intro-ink)!important;color:var(--intro-paper)}
+#intro button:focus-visible{outline:3px solid var(--intro-ink);outline-offset:4px;position:relative;z-index:1}
+#intro #boot-error:empty{display:none}
+#intro #boot-error{margin:18px 0 0;max-width:none}
+#intro .intro-consent{position:absolute;bottom:20px;left:24px;right:24px;margin:0 auto;max-width:760px;text-align:center;font-size:10px;line-height:1.5;color:#494d29;letter-spacing:0}
+@media(max-width:900px){#intro .intro-content{width:min(640px,80vw)}#intro h1.intro-tagline{font-size:clamp(22px,3.5vw,32px);margin-top:42px}.intro-actions{margin-top:20px}#intro .intro-actions button{font-size:14px;padding:20px 6px}#intro .intro-languages button{font-size:13px;padding:14px 4px}}
+@media(max-width:520px){#intro{padding:42px 20px 26px;display:flex;flex-direction:column;justify-content:space-between;gap:36px}#intro .intro-content{width:100%;margin:auto 0}#intro .intro-controls{width:100%}#intro h1.intro-tagline{font-size:clamp(19px,5.7vw,28px);margin:34px 0 24px}#intro .intro-languages button{font-size:12px;padding:14px 2px}.intro-actions{gap:9px;margin-top:18px}#intro .intro-actions button{font-size:12px;padding:19px 3px}#intro .intro-consent{position:static;font-size:9px;max-width:370px}}
+@media(max-height:600px) and (min-width:521px){#intro{padding:32px 24px 20px;display:flex;flex-direction:column;justify-content:flex-start;gap:28px}#intro .intro-content{width:min(540px,60vw);margin:auto 0}#intro h1.intro-tagline{margin:25px 0 20px;font-size:26px}#intro .intro-languages button{padding:10px 4px}#intro .intro-actions button{padding:15px 6px}.intro-actions{margin-top:16px}#intro .intro-consent{position:static;font-size:9px}}
+@media(prefers-reduced-motion:reduce){#intro button{transition:none}}
+@media(max-width:360px){.intro-actions{grid-template-columns:1fr}#intro .intro-actions button{font-size:14px}}
