@@ -1,6 +1,6 @@
-# The Babel — R12 expression background collage
+# The Babel — R12.1 transparent screenprint collage
 
-R12 replaces the live orbit layer with expression-driven background blocks, open line bundles, halftone and hatching. Five existing palettes blend smoothly with the facial-action values; seeded motion creates changing screen-space compositions behind the participant. No additional model or audio input is introduced. Final solo/duet artwork and statistics remain unchanged. See [BACKDROP-VISUALS.md](BACKDROP-VISUALS.md) for the algorithm and validation.
+R12.1 translates the five approved image concepts into animated torn-paper ribbons, sharp fragments, halftone and print texture. Deep solid ink areas become transparent openings onto the unmodified camera background. Existing facial-action values morph the five compositions and control their movement; no additional recognition task is introduced. Final solo/duet artwork and statistics remain unchanged. See [BACKDROP-VISUALS.md](BACKDROP-VISUALS.md) for implementation and validation.
 
 ## Previous graphic versions
 

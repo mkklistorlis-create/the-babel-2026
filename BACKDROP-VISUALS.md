@@ -1,41 +1,32 @@
-# R12 — expression background collage
+# R12.1 — transparent screenprint collage
 
-The active live visual layer replaces the R11 orbits with screen-space color blocks, open line bundles, halftone dots and hatching. It uses the five palettes from Figma `134:11` and the graphic vocabulary visible in the user's reference screenshot of the epohlog tutorial. The Instagram page's description was readable; video playback was unavailable during implementation. This version is an original interpretation of the screenshot, not a frame-by-frame video reproduction.
+The five approved concept images guide the live backdrop: large torn-paper swaths, offset cream edges, angular cutouts, fine parallel cuts, dense halftone and paper distress. The concepts' dark solid masses become transparent camera windows. No dark background rectangle or tinted camera filter is introduced.
 
-## Visual mapping
+## Composition and movement
 
-| Artistic family | Existing palette | Geometry and motion |
+| Family | Light inks | Geometry and motion |
 | --- | --- | --- |
-| Calm | Sage, ivory, pale mint | Soft panels, gently curved parallel lines, slow drift |
-| Joy | Peach, yellow, cream | Rounded expanded blocks, wider line spacing, buoyant movement |
-| Surprise | Purple, pink, pale pink | Star-shaped fragments, angular bends, larger rotations |
-| Tension | Coral red | Slanted shards, closely spaced zigzag bundles, tighter geometry |
-| Sadness | Slate blue, muted violet, deep slate | Tall blocks and slow vertical line structures |
+| Calm | Sage, ivory, mint | Broad horizontal torn ribbons with slow flowing deformation |
+| Joy | Orange, yellow, cream | Splayed diagonals, elastic width and buoyant drifting |
+| Surprise | Violet, pink, blush | Opposing diagonals and sharp interlocking fragments |
+| Tension | Coral, pale coral, cream | Compressed steep strips and tight angular cuts |
+| Sadness | Slate blue, muted violet, pale blue-gray | Descending vertical ribbons with slow sway |
 
-These categories reuse the existing emoji/facial-action mapping. They are artistic controls and do not establish a participant's psychological state.
+Eleven large swaths have 112 segments per edge, fixed multiscale tears, and four off-register cream underprints. Sixteen long/short wedges and three small line bundles supply a secondary scale. Geometry uses common topology, so the existing 900 ms family transition morphs layout and inks continuously. Existing facial-action intensity affects ribbon width, breathing amplitude and motion rate. Seeded, integrated motion avoids per-frame random flicker. These are artistic mappings of observed facial configurations, not psychological diagnoses.
 
-## Algorithm
-
-1. Reuse the existing valid facial-action observations and their family/intensity values. No additional inference model, audio input or semantic classifier.
-2. Smooth family transitions over 900 ms and intensity with a 260 ms time constant. Geometry and palette blend together; background shapes do not snap to a newly rolled layout every frame.
-3. Seed a screen-space composition per participant ownership token: eight large edge forms, twelve small accents and four bundles of five open lines. Nothing is anchored to the face or neck.
-4. Blend sixteen-point shape templates by family weights. Intensity changes size, visible accent density, line width and motion rate. Seeded interpolated noise controls continuous translation and rotation. The motion clock integrates current speed, preventing elapsed-time jumps when expression intensity changes.
-5. Draw the collage after the original camera image and before the existing body mosaic/particles. The participant, emoji, hands and six/seven remain in front; camera background remains visible through negative space.
-6. Freeze decorative motion for pause/reduced-motion settings. Stale/missing tracking, multiple-person state or participant changes clear the layer through the existing eligibility rules.
+Nine screen-space knockout wedges remove ALL collage ink layers at their positions. Natural gaps between paper pieces also remain transparent. Fine dark halftone dots are retained as printed detail, while the large dark masses are absent. The original camera is drawn first; the paper collage follows; the existing body mosaic, particles, hands, emoji and 6/7 remain in front.
 
 ## Rendering and preservation
 
-Three.js/WebGL uses one mesh, one draw call and reusable buffers capped at 12,000 vertices; the current composition uses 4,800. Halftone and hatch patterns are analytic fragment shaders. There is no bloom pass, texture upload loop or extra recognition task. This bounds the added geometry; actual frame rate depends on the device, camera inference and browser.
+One Three.js mesh / draw call, 10,296 vertices, reusable 18,000-vertex buffers. The fragment shader draws halftone, grain, fine edge tears and alpha-discard windows. No added recognition model, audio processing, image downloads or postprocessing pass. Pause and reduced motion freeze decorative time; stale tracking and multiple-person state use the existing eligibility gates.
 
-`affect-backdrop.js` owns the new renderer. `duet-canvas.js` installs it for both camera and demo modes; each peer transmits its processed canvas through the existing video connection. Diagnostics expose `affectBackdrop`. The old orbit module remains archived in source but is no longer instantiated.
-
-The final session artwork, bar chart, activity timeline, PNG generation, expression coefficients, fingertip renderer and six/seven gesture are unchanged. R11.5 remains recoverable from Git history.
+The same renderer runs for solo and duet, and the existing processed video stream carries the backdrop to the peer. Expression coefficients, participant rendering, hand gestures, final session artwork, statistics and exports are unchanged. R12.0 remains in Git history.
 
 ## Validation
 
-- 294 tests pass, including new deterministic composition, bounded buffers, screen-relative positioning, pause, reduced motion and invalid-tracking checks.
-- Production build succeeds with all 13 pinned vendor assets.
-- Chromium/WebGL previews inspected for all five palettes; no page errors.
-- Two independent browser contexts connected with PeerJS/WebRTC and received each other's different expression backgrounds.
-- Both peers completed the round and produced identical final artwork canvases at 1600 × 1000.
-- Browser checks used simulated camera input; physical webcam accuracy was not retested.
+- All 294 existing tests pass, including deterministic composition, bounded buffers, face-independent coordinates and pause/stale/ownership behavior.
+- Production build verifies all 13 pinned runtime assets.
+- Chromium WebGL preview inspected in all five families with no page or shader errors.
+- GPU alpha readback at 640 × 400 found 32–53% transparent background pixels across five seeded sample compositions. Every fully transparent pixel retained the exact RGB of the underlying test background.
+- GPU frames two seconds apart changed in all five families, confirming rendered animation rather than only changing diagnostic values.
+- This is a procedural interpretation of the approved image concepts. Browser checks use simulated input; physical webcam expression accuracy is unchanged and was not remeasured.

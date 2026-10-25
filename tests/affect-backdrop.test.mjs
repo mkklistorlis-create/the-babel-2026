@@ -11,8 +11,9 @@ test('each palette creates a bounded, seeded collage of solid forms and open lin
  for(const family of AFFECT_FAMILIES){
   const commands=composeBackdrop(state(family),5,42,720,900);
   assert.deepEqual(commands,composeBackdrop(state(family),5,42,720,900));
-  assert.equal(commands.filter(c=>c.type==='fill').length,20);
-  assert.equal(commands.filter(c=>c.type==='line').length,20);
+  assert.equal(commands.filter(c=>c.type==='fill').length,16);
+  assert.equal(commands.filter(c=>c.type==='strip').length,15);
+  assert.equal(commands.filter(c=>c.type==='line').length,12);
   for(const c of commands){assert.ok(c.alpha>=0&&c.alpha<=1);assert.ok(c.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)));}
   assert.notDeepEqual(commands,composeBackdrop(state(family),8,42,720,900));
  }
