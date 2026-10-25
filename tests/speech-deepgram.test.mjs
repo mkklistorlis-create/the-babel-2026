@@ -20,6 +20,44 @@ function setup(t, language = 'auto') {
   const ws = MockSocket.instances.at(-1); t.after(() => stream.close());
   return {stream, ws, transcripts, errors, closes, get ready(){return ready;}};
 }
+function scoredResult(s, text, confidence, extra = {}) {
+  s.ws.result(text,0,.4,{channel:{alternatives:[{transcript:text,confidence,
+    words:[{word:text,start:0,end:.4,language:'zh',confidence}]}]},...extra});
+}
+test('startup noise produces neither interim nor final captions; a corrected first word appears immediately', t => {
+  const s=setup(t,'zh'); s.ws.emit('open');
+  scoredResult(s,'无意义的猜测',.12);
+  scoredResult(s,'无意义的猜测',.24,{is_final:true,speech_final:true});
+  s.ws.emit('message',JSON.stringify({type:'UtteranceEnd',last_word_end:.4}));
+  assert.equal(s.transcripts.length,0);
+  scoredResult(s,'你好',.94);
+  assert.equal(s.transcripts.length,1);
+  assert.equal(s.transcripts[0].text,'你好');
+  assert.equal(s.transcripts[0].revision,1);
+  assert.equal(s.transcripts[0].final,false);
+  scoredResult(s,'你好',.98,{is_final:true,speech_final:true});
+  assert.equal(s.transcripts.at(-1).final,true);
+  assert.deepEqual(s.errors,[]);
+});
+test('startup guard accepts short speech at the threshold and leaves subsequent revisions untouched', t => {
+  const s=setup(t,'zh'); s.ws.emit('open');
+  scoredResult(s,'好',.65);
+  scoredResult(s,'好的',.3);
+  assert.deepEqual(s.transcripts.map(x=>x.text),['好','好的']);
+  scoredResult(s,'好的',.3,{is_final:true,speech_final:true});
+  s.ws.result('下一句',1,1.4,{channel:{alternatives:[{transcript:'下一句',confidence:.3}]}});
+  assert.equal(s.transcripts.at(-1).text,'下一句');
+  const next=setup(t,'zh'); next.ws.emit('open');
+  scoredResult(next,'噪音',.3);
+  assert.equal(next.transcripts.length,0);
+});
+test('startup guard falls back to word confidence and tolerates omitted scores', t => {
+  const s=setup(t,'zh'); s.ws.emit('open');
+  s.ws.result('噪音',0,.4,{channel:{alternatives:[{transcript:'噪音',words:[{start:0,end:.4,confidence:.1}]}]}});
+  assert.equal(s.transcripts.length,0);
+  s.ws.result('你好',0,.4);
+  assert.equal(s.transcripts.at(-1).text,'你好');
+});
 test('configures four-language streaming and waits for upstream readiness', t => {
   const s=setup(t), url=new URL(s.ws.url);
   assert.equal(url.searchParams.get('model'),'nova-3');
