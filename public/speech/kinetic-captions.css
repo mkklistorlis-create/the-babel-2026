@@ -1,12 +1,13 @@
 /* One utterance, one generous type area. Short phrases start large. */
-#caption-deck .live-captions{width:min(1200px,100%);padding:14px 24px;background:#f3f3ebed;border:0;box-shadow:none}
+#caption-deck .live-captions{width:min(1200px,100%);padding:14px 24px;background:transparent;border:0;box-shadow:none}
 #caption-deck .live-captions>strong{display:none}
-#caption-deck .caption-text{height:clamp(110px,21dvh,190px);max-height:none;margin:0;font-family:'Noto Sans',Arial,sans-serif;font-weight:700;font-size:100px;line-height:.98;letter-spacing:-.025em;white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto;scrollbar-width:none;text-align:center;color:#10142b}
+#caption-deck .caption-text{height:clamp(110px,21dvh,190px);max-height:none;margin:0;font-family:'Noto Sans',Arial,sans-serif;font-weight:700;font-size:100px;line-height:.98;letter-spacing:-.025em;white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto;scrollbar-width:none;text-align:center;color:#10142b;text-shadow:0 1px 2px #f3f3ebcc,0 0 8px #f3f3eb66}
 #caption-deck [lang="zh"] .caption-text{font-family:'Noto Sans SC','Source Han Sans SC',sans-serif;letter-spacing:-.04em;line-height:1.12}
 #caption-deck [lang="ja"] .caption-text{font-family:'Noto Sans JP','Source Han Sans JP',sans-serif;letter-spacing:-.04em;line-height:1.12}
 #caption-deck .caption-text:empty{display:none}
 #caption-deck .caption-meta{text-align:center;min-height:0;margin:6px 0 0;font-size:11px}
 #caption-deck .caption-meta:empty{display:none}
+#caption-deck .live-captions:not(:has(.caption-text:not(:empty),.caption-meta:not(:empty))){display:none}
 #caption-deck .caption-original{text-align:center;font-size:11px;max-height:1.5em}
 #caption-deck .remote-captions .caption-text:empty::before{content:none}
 #caption-deck .remote-captions:not(:has(.caption-text:not(:empty))){display:none}

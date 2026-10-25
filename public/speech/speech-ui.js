@@ -36,7 +36,7 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
   $('remote').hidden=connection.status!=='connected';
   const d=getDiagnostics?.()||{};
   $('captions').hidden=d.mode==='idle'||d.mode==='demo';
-  if(active)$('caption-state').textContent=connecting?'正在连接麦克风…':($('source').textContent?'':'请说话 · '+languageNames[language]);
+  if(active)$('caption-state').textContent=connecting?'正在连接麦克风…':'';
   $('captions').lang=language;$('remote').lang=language;
   $('local-label').textContent=connection.role?`${connection.role} · 我说的话`:'我说的话';
  }
@@ -157,7 +157,7 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
  platform.fetch('/api/semantic-config',{cache:'no-store',signal:abort.signal}).then(async response=>{
   if(!response.ok)throw new Error('配置不可用');const value=await response.json();if(destroyed)return;
   config=value;
-  $('caption-state').textContent=!config.speechConfigured||!config.semanticConfigured?'语音服务尚未配置。':'进入画面后即可说话。';controls();
+  $('caption-state').textContent=!config.speechConfigured||!config.semanticConfigured?'语音服务尚未配置。':'';controls();
  }).catch(()=>{if(!destroyed){$('caption-state').textContent='语音服务暂时不可用，摄像头与艺术画面可正常使用。';controls();}});
  controls();
  return {

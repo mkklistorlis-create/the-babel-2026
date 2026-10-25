@@ -81,13 +81,13 @@ test('all palettes have animated triangles and circles within the existing mesh 
  for(const family of AFFECT_FAMILIES){
   const first=composeBackdrop(state(family),0,42),next=composeBackdrop(state(family),1,42);
   const particles=first.filter(c=>c.decoration),moved=next.filter(c=>c.decoration);
-  assert.equal(particles.filter(c=>c.decoration==='triangle').length,36);
-  assert.equal(particles.filter(c=>c.decoration==='circle').length,36);
+  assert.equal(particles.filter(c=>c.decoration==='triangle').length,84);
+  assert.equal(particles.filter(c=>c.decoration==='circle').length,84);
   assert.notDeepEqual(particles[0].points,moved[0].points);assert.notDeepEqual(particles[0].color,moved[0].color);
   for(const p of particles)assert.ok(Object.values(p.color).every(v=>v>=0&&v<=1));
  }
  const layer=new AffectBackdrop(new Group()),opts={owner:'A',expression:expression('smile')};
- layer.update(person(0),{},0,opts);assert.equal(layer.stats.vertices,15228);assert.equal(layer.stats.decorativeParticles,72);
+ layer.update(person(0),{},0,opts);assert.equal(layer.stats.vertices,17964);assert.equal(layer.stats.decorativeParticles,168);
  const before=Array.from(layer.buffers.position);layer.update(person(100),{},100,{...opts,paused:true});
  assert.deepEqual(Array.from(layer.buffers.position),before);layer.dispose();
 });

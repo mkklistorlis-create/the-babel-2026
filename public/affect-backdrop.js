@@ -67,12 +67,13 @@ export function composeBackdrop(state,phase=0,seed=1,width=1440,height=900,origi
  }
  // Small ink particles ride the radial forms. Stable seeds keep their identity
  // through palette transitions; all share the existing mesh and motion clock.
- for(let i=0;i<72;i++){
-  const key=seed+1600+i*37,angle=(i%24)/24*TAU-.16+(hash(key)-.5)*.12+Math.sin(phase*1.7+key)*.025;
+ for(let i=0;i<168;i++){
+  const key=seed+1600+i*37,angle=(i%24)/24*TAU-.16+(hash(key)-.5)*.18+Math.sin(phase*1.7+key)*.035;
   const dx=Math.cos(angle),dy=Math.sin(angle),edge=edgeDistance(dx,dy);
-  const distance=edge*(.25+Math.floor(i/24)*.25+hash(key+1)*.16)+Math.sin(phase*2+key)*small*.009;
+  const distance=edge*(.16+Math.floor(i/24)*.115+hash(key+1)*.08)+Math.sin(phase*2+key)*small*.009;
   const x=cx+dx*distance,y=cy+dy*distance;
-  const radius=small*(.004+hash(key+2)*.012)*(1+Math.sin(phase*2.4+key)*.16);
+  const band=hash(key+5),size=band<.6?.005+hash(key+2)*.007:band<.88?.014+hash(key+2)*.010:.026+hash(key+2)*.012;
+  const radius=small*size*(1+Math.sin(phase*2.4+key)*.16);
   const sides=i%2?3:16,rotation=hash(key+3)*TAU+phase*(i%3===0?-.8:.6),points=[];
   for(let j=0;j<sides;j++){const a=rotation+j/sides*TAU;points.push({x:x+Math.cos(a)*radius,y:y+Math.sin(a)*radius});}
   const ink=colorFor(state,i%2),brightness=.48+hash(key+4)*.4+Math.sin(phase*2.1+key)*.12;
@@ -182,7 +183,7 @@ export class AffectBackdrop{
   }
   for(const attribute of Object.values(this.geometry.attributes)){attribute.clearUpdateRanges();attribute.addUpdateRange(0,this.count*attribute.itemSize);attribute.needsUpdate=true;}
   this.geometry.setDrawRange(0,this.count);this.mesh.visible=true;
-  this.stats={visible:true,kind:'background-collage',family:state.family,intensity:state.intensity,vertices:this.count,petals:24,shards:16,lineBundles:3,decorativeParticles:72,cameraWindows:8,layout:'radial-bloom',origin:{...this.origin},transitionMs:1500,returnToCalmHoldMs:1600,negativeSpace:'transparent',phase:this.phase,weights:{...state.weights}};return this.stats;
+  this.stats={visible:true,kind:'background-collage',family:state.family,intensity:state.intensity,vertices:this.count,petals:24,shards:16,lineBundles:3,decorativeParticles:168,cameraWindows:8,layout:'radial-bloom',origin:{...this.origin},transitionMs:1500,returnToCalmHoldMs:1600,negativeSpace:'transparent',phase:this.phase,weights:{...state.weights}};return this.stats;
  }
  dispose(){this.clear();this.mesh.removeFromParent();this.geometry.dispose();this.material.dispose();}
 }

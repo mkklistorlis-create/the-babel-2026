@@ -58,7 +58,7 @@ test('entry can start before configuration and face tracking settle, without an 
 });
 test('late startup rejection after stop cannot clear a newer microphone session',async()=>{
  const h=harness();await tick();const first=h.get('start').onclick();h.get('stop').onclick();const second=h.get('start').onclick();await first;
- assert.equal(h.ui.diagnostics.active,true);assert.equal(h.get('stop').disabled,false);h.plugin.ready();await second;assert.match(h.get('caption-state').textContent,/请说话/);h.ui.destroy();
+ assert.equal(h.ui.diagnostics.active,true);assert.equal(h.get('stop').disabled,false);h.plugin.ready();await second;assert.equal(h.get('caption-state').textContent,'');h.ui.destroy();
 });
 test('permission denial offers retry and tracking updates never silently reopen the microphone',async()=>{
  const h=harness();await tick();const pending=h.ui.start();
