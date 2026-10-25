@@ -25,18 +25,26 @@ function meaning(h,id='u',stage='final',text='Hello',value='问好'){h.plugin.em
 
 test('unconfigured speech remains disabled and never starts microphone',async()=>{
  const h=harness({speechConfigured:false,semanticConfigured:false,enabled:false});await tick();
- assert.equal(h.get('start').disabled,true);await h.get('start').onclick();assert.equal(h.plugin.startCount,0);assert.match(h.get('status').textContent,/尚未配置/);h.ui.destroy();
+ assert.equal(h.get('start').disabled,true);await h.get('start').onclick();assert.equal(h.plugin.startCount,0);assert.match(h.get('caption-state').textContent,/尚未配置/);h.ui.destroy();
 });
-test('microphone requires live single-person source and an access code when configured',async()=>{
- const h=harness({speechConfigured:true,semanticConfigured:true,enabled:true,accessRequired:true,accessConfigured:true});await tick();
- assert.equal(h.plugin.startCount,0);assert.equal(h.get('code-row').hidden,false);
- await h.get('start').onclick();assert.equal(h.plugin.startCount,0);assert.equal(h.get('code').focused,true);
- h.get('code').value='demo-only';h.setDiagnostic({mode:'demo'});await h.get('start').onclick();assert.equal(h.plugin.startCount,0);
- h.setDiagnostic({mode:'live'});await h.start();assert.equal(h.plugin.accessCode,'demo-only');assert.equal(h.get('start').disabled,true);assert.equal(h.get('stop').disabled,false);h.ui.destroy();
+test('entry can start before configuration and face tracking settle, without an access code',async()=>{
+ const h=harness();h.setDiagnostic({occupancy:'empty'});
+ const pending=h.ui.start();assert.equal(h.plugin.startCount,1);h.plugin.ready();await pending;
+ assert.equal(h.plugin.accessCode,'');assert.equal(h.get('stop').hidden,false);
+ h.setDiagnostic({occupancy:'multiple',ownershipEpoch:5});h.tick();assert.equal(h.ui.diagnostics.active,true);
+ h.setDiagnostic({mode:'idle'});h.tick();assert.equal(h.ui.diagnostics.active,false);h.ui.destroy();
 });
 test('late startup rejection after stop cannot clear a newer microphone session',async()=>{
  const h=harness();await tick();const first=h.get('start').onclick();h.get('stop').onclick();const second=h.get('start').onclick();await first;
- assert.equal(h.ui.diagnostics.active,true);assert.equal(h.get('stop').disabled,false);h.plugin.ready();await second;assert.match(h.get('status').textContent,/正在聆听/);h.ui.destroy();
+ assert.equal(h.ui.diagnostics.active,true);assert.equal(h.get('stop').disabled,false);h.plugin.ready();await second;assert.match(h.get('caption-state').textContent,/请说话/);h.ui.destroy();
+});
+test('permission denial offers retry and tracking updates never silently reopen the microphone',async()=>{
+ const h=harness();await tick();const pending=h.ui.start();
+ h.plugin.emit('error',{fatal:true,code:'NotAllowedError',message:'Permission denied'});await pending;
+ assert.equal(h.ui.diagnostics.active,false);assert.equal(h.get('start').hidden,false);
+ assert.match(h.get('caption-state').textContent,/未获授权/);
+ h.setDiagnostic({occupancy:'single',ownershipEpoch:8});h.tick();h.tick();assert.equal(h.plugin.startCount,1);
+ await h.start();assert.equal(h.plugin.startCount,2);h.ui.destroy();
 });
 test('partial and final translations are shared without replacing the current live view with an old final',async()=>{
  const h=harness();await tick();h.ui.setConnection({status:'connected',roomId:'room',role:'A',remoteLanguage:'ja'});await h.start();
@@ -48,7 +56,7 @@ test('partial and final translations are shared without replacing the current li
 test('connected remote participant does not count as multiple people in the local camera',async()=>{
  const h=harness();await tick();h.ui.setConnection({status:'connected',roomId:'room',role:'A',remoteLanguage:'ja'});await h.start();h.tick();assert.equal(h.ui.diagnostics.active,true);
  h.ui.setConnection({status:'connected',roomId:'room',role:'A',remoteLanguage:'ja'});assert.equal(h.ui.diagnostics.active,true);
- h.setDiagnostic({occupancy:'multiple'});h.tick();assert.equal(h.ui.diagnostics.active,false);assert.equal(h.plugin.stopCount,1);assert.equal(h.sent.at(-1).type,'reset');h.ui.destroy();
+ h.setDiagnostic({occupancy:'multiple'});h.tick();assert.equal(h.ui.diagnostics.active,true);assert.equal(h.plugin.stopCount,0);h.ui.destroy();
 });
 test('remote text is rendered as text and rejected after disconnect or from the local role',async()=>{
  const h=harness();await tick();h.ui.setConnection({status:'connected',roomId:'room',role:'A',remoteLanguage:'ja'});
@@ -58,38 +66,32 @@ test('remote text is rendered as text and rejected after disconnect or from the 
  h.ui.receiveMeaning({type:'reset',speakerId:'B'});assert.equal(h.get('remote-meaning').textContent,'');
  h.ui.setConnection({status:'waiting',roomId:'room',role:'A',remoteLanguage:'ja'});h.ui.receiveMeaning(value);assert.equal(h.ui.diagnostics.remote,null);h.ui.destroy();
 });
-test('room and camera ownership boundaries clear context and block old events',async()=>{
+test('room transitions clear old captions while microphone stays open',async()=>{
  const h=harness();await tick();h.ui.setConnection({status:'connected',roomId:'room',role:'A',remoteLanguage:'ja'});await h.start();transcript(h);meaning(h);
- h.ui.setConnection({status:'waiting',roomId:'room',role:'A',remoteLanguage:'ja'});assert.equal(h.plugin.stopCount,1);assert.equal(h.ui.diagnostics.latest,null);meaning(h);assert.equal(h.ui.diagnostics.latest,null);
- await h.start();h.setDiagnostic({ownershipEpoch:2});h.tick();assert.equal(h.ui.diagnostics.active,false);assert.match(h.get('status').textContent,/参与者已变化/);h.ui.destroy();
+ h.ui.setConnection({status:'waiting',roomId:'room',role:'A',remoteLanguage:'ja'});assert.equal(h.plugin.stopCount,0);assert.equal(h.ui.diagnostics.latest,null);meaning(h);assert.equal(h.ui.diagnostics.latest,null);
+ h.setDiagnostic({ownershipEpoch:2});h.tick();assert.equal(h.ui.diagnostics.active,true);h.ui.destroy();
 });
 test('destroy stops microphone, removes callbacks/timer and clears access code',async()=>{
- const h=harness();await tick();h.get('code').value='local-secret';await h.start();h.ui.destroy();
- assert.equal(h.plugin.destroyed,true);assert.equal(h.plugin.active,false);assert.equal(h.plugin.accessCode,'');assert.equal(h.get('code').value,'');assert.equal(h.timers.size,0);
+ const h=harness();await tick();await h.start();h.ui.destroy();
+ assert.equal(h.plugin.destroyed,true);assert.equal(h.plugin.active,false);assert.equal(h.plugin.accessCode,'');assert.equal(h.timers.size,0);
  meaning(h);assert.equal(h.ui.diagnostics.latest,null);assert.equal(h.get('start').onclick,null);
 });
 
-test('changed camera ownership is checked before sharing a final even before the timer ticks',async()=>{
+test('leaving camera mode blocks a late speech result before the timer ticks',async()=>{
  const h=harness();await tick();h.ui.setConnection({status:'connected',roomId:'room',role:'A',remoteLanguage:'ja'});await h.start();transcript(h);
- h.setDiagnostic({ownershipEpoch:2});meaning(h);
+ h.setDiagnostic({mode:'idle'});meaning(h);
  assert.equal(h.ui.diagnostics.active,false);assert.equal(h.sent.filter(value=>value.stage==='final').length,0);assert.equal(h.sent.at(-1).type,'reset');h.ui.destroy();
 });
 test('a failed reset has bounded retries and a new speech start cancels the old reset',async()=>{
  const h=harness();await tick();h.ui.setConnection({status:'connected',roomId:'room',role:'A',remoteLanguage:'ja'});await h.start();h.setSendWorks(false);h.ui.stop();
  assert.equal(h.timeouts.size,1);h.flushTimeout();assert.equal(h.sent.length,2);
  await h.start();assert.equal(h.timeouts.size,0);h.flushTimeout();assert.equal(h.sent.length,2);
- h.ui.stop();for(let i=0;i<10;i++)h.flushTimeout();assert.equal(h.timeouts.size,0);assert.equal(h.sent.length,10);assert.match(h.get('status').textContent,/暂未能清除/);h.ui.destroy();
+ h.ui.stop();for(let i=0;i<10;i++)h.flushTimeout();assert.equal(h.timeouts.size,0);assert.equal(h.sent.length,10);assert.match(h.get('caption-state').textContent,/暂未能清除/);h.ui.destroy();
 });
 test('disconnect and destruction cancel queued resets',async()=>{
  const h=harness();await tick();h.ui.setConnection({status:'connected',roomId:'room',role:'A',remoteLanguage:'ja'});await h.start();h.setSendWorks(false);h.ui.stop();assert.equal(h.timeouts.size,1);
  h.ui.setConnection({status:'waiting',roomId:'room',role:'A',remoteLanguage:'ja'});assert.equal(h.timeouts.size,0);
  h.ui.setConnection({status:'connected',roomId:'room',role:'A',remoteLanguage:'ja'});await h.start();h.ui.stop();assert.equal(h.timeouts.size,1);h.ui.destroy();assert.equal(h.timeouts.size,0);
-});
-
-test('speech panel preserves native keyboard controls and Escape closes only its panel',async()=>{
- const h=harness();await tick();let prevented=0,stopped=0;const event=key=>({key,preventDefault(){prevented++;},stopPropagation(){stopped++;}});
- h.get('panel').onkeydown(event(' '));assert.equal(prevented,0);assert.equal(stopped,1);
- h.get('panel').open=true;h.get('panel').onkeydown(event('Escape'));assert.equal(h.get('panel').open,false);assert.equal(prevented,1);h.ui.destroy();
 });
 
 test('language choice configures recognition and receiving language; peer language sets outgoing translation',async()=>{
@@ -111,7 +113,7 @@ test('language choice configures recognition and receiving language; peer langua
 test('solo transcript stays in bottom caption region and unknown peer language is never guessed for sharing',async()=>{
  const h=harness();await tick();await h.start();transcript(h,'one','First');transcript(h,'one','First sentence');
  assert.equal(h.get('source').textContent,'First sentence');assert.equal(h.get('captions').hidden,false);assert.equal(h.get('remote').hidden,true);
- h.ui.setConnection({status:'connected',roomId:'room',role:'A'});await h.start();transcript(h);meaning(h);
+ h.ui.setConnection({status:'connected',roomId:'room',role:'A'});transcript(h);meaning(h);
  assert.equal(h.sent.length,0);h.ui.destroy();
 });
 

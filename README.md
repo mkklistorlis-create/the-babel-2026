@@ -1,8 +1,8 @@
-# The Babel — R12.3 optional four-language speech
+# The Babel — R12.3 live four-language captions
 
-R12.3 adds an opt-in Chinese / English / Japanese / Spanish speech panel to the existing page. Each device streams its own microphone to Deepgram and receives structured meaning from the configured text model. The start screen selects the spoken/received language. Solo captions appear at the bottom; in a duet the counterpart’s pane displays live translations into the viewer’s selected language, with smaller original text. Partial translations are revised by final sentences. Camera input still starts independently; the R12.2 artwork and statistics remain unchanged.
+Choose Chinese, English, Japanese or Spanish on the start screen. Clicking Start requests camera and microphone permissions together. Each device streams its microphone to Deepgram and receives meaning/translation from the configured text model. The current utterance appears as bold text at the bottom: short phrases start large and longer sentences shrink to fit. In a duet the counterpart’s pane displays translations in the viewer’s selected language. No participant access code is required. The R12.2 artwork and statistics retain their existing inputs.
 
-See [SPEECH.md](SPEECH.md) for setup, Vercel environment variables, the private demo access code, session limits and data handling. Without speech configuration, the camera experience remains available. API keys are never included in the frontend or repository.
+See [SPEECH.md](SPEECH.md) for setup, Vercel environment variables, the start-button microphone flow, session limits and data handling. Without speech configuration, the camera experience remains available. API keys are never included in the frontend or repository.
 
 R12.2 replaces rectangular background strips with pointed petals radiating from the participant. Five palettes share a continuous composition, with slower color/shape transitions and smoothed motion. Camera cutouts remain transparent. The 6/7 gesture now tolerates a brief single-hand miss during the first crossing and fingertips beyond the camera edge; held digits stay inside the viewport. Final solo/duet artwork and statistics are unchanged. See [BACKDROP-VISUALS.md](BACKDROP-VISUALS.md) for implementation and validation.
 
@@ -87,7 +87,7 @@ See `verification-r076.md` for current verification; earlier reports are histori
 
 ## Files
 
-- `public/app.js`, `index.html`, `styles.css`: camera flow, opt-in speech entry and diagnostic panel.
+- `public/app.js`, `index.html`, `styles.css`: camera flow, start-button speech entry and diagnostic panel.
 - `public/expressions.js`: facial-action emoji vocabulary and temporal selection.
 - `public/tracking-worker.js`, `tracking.js`, `tracking-math.js`, `mask-stability.js`: vision, tracking identities and filters.
 - `public/duet-canvas.js`, `particle-motion.js`, `hand-trails.js`: original Three.js composition, square-particle physics and input strokes. `fingertip-ink.js` and `cobalt-geometry.js` style only those fingertip strokes.

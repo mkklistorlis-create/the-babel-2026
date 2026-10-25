@@ -86,9 +86,9 @@ function enter(next){
 }
 async function start(){
  if(!renderer||mode!=='idle')return mode==='live'&&cameraReady;
- const token=enter('live');notice('正在启动摄像头与视觉追踪…',true);
+ const token=enter('live');void speechUI?.start?.();notice('正在启动摄像头与视觉追踪…',true);
  try{await tracker.start();if(token!==generation)return false;cameraReady=true;sessionController?.setSource?.({active:true,mode:'live'});notice('把双手伸入画面试着划线，再试试微笑、张嘴或转头。');return true;}
- catch(error){if(token!==generation)return false;cameraReady=false;notice(`摄像头无法启动：${error.message||'请检查授权或模型加载'}。Esc 返回，可选择演示。`,true);$('debug').hidden=false;return false;}
+ catch(error){if(token!==generation)return false;cameraReady=false;speechUI?.stop('摄像头未启动，麦克风已关闭。');notice(`摄像头无法启动：${error.message||'请检查授权或模型加载'}。Esc 返回，可选择演示。`,true);$('debug').hidden=false;return false;}
 }
 function stop(){
  speechUI?.stop();

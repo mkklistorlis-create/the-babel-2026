@@ -63,17 +63,17 @@ function fixture(t, options = {}) {
   return { gateway, server, wss, upgrade, connect, origin, host };
 }
 
-test('public readiness is secret-free and production requires a configured access code', () => {
+test('public readiness is secret-free and no longer requires a participant passphrase', () => {
   assert.deepEqual(getSpeechConfig({}), { speechConfigured: false, semanticConfigured: false, accessRequired: false, accessConfigured: false, enabled: false, maxSessionMs: 240000, languages: ['zh', 'en', 'ja', 'es'] });
   assert.equal(getSpeechConfig(KEYS).enabled, true);
   for (const value of ['1', '0', '']) {
     const config = getSpeechConfig({ ...KEYS, VERCEL: value });
-    assert.equal(config.accessRequired, true); assert.equal(config.enabled, false);
+    assert.equal(config.accessRequired, false); assert.equal(config.enabled, true);
   }
   const ready = getSpeechConfig({ ...REMOTE, SEMANTIC_BASE_URL: 'https://private.example/v1' });
-  assert.equal(ready.enabled, true); assert.equal(ready.accessConfigured, true);
+  assert.equal(ready.enabled, true); assert.equal(ready.accessConfigured, false);
   for (const value of ['test-speech-secret', 'test-semantic-secret', 'demo-access-secret', 'private.example']) assert.equal(JSON.stringify(ready).includes(value), false);
-  assert.equal(getSpeechConfig({ ...KEYS, BABEL_SPEECH_ACCESS_CODE: 'local-code' }).accessRequired, true);
+  assert.equal(getSpeechConfig({ ...KEYS, BABEL_SPEECH_ACCESS_CODE: 'local-code' }).accessRequired, false);
 });
 
 test('gateway translates to requested language and cancels obsolete translation when peer preference changes',async t=>{
@@ -101,26 +101,14 @@ test('same-origin upgrade accepts localhost HTTP and production HTTPS only', t =
   assert.ok(local.connect()); assert.ok(remote.connect());
 });
 
-test('providers stay idle until first authenticated start or interpret message', async t => {
-  const speech = fakeSpeech(); let calls = 0;
-  const f = fixture(t, { env: REMOTE, speechFactory: speech.factory, interpreter: async input => { calls++; return meaning(input.text); } });
-  const ws = f.connect(); await tick(); assert.equal(calls, 0); assert.equal(speech.streams.length, 0);
-  ws.input({ type: 'start', language: 'en', sampleRate: 16000 });
-  assert.equal((await ws.next()).code, 'ACCESS_REQUIRED'); assert.equal(ws.closed.code, 1008);
-  const wrong = f.connect(); wrong.input({ type: 'interpret', text: 'Hi', language: 'en', accessCode: 'incorrect' });
-  assert.equal((await wrong.next()).code, 'ACCESS_DENIED'); assert.equal(wrong.closed.code, 1008);
-  const binary = f.connect(); binary.audio(Buffer.alloc(4)); assert.equal((await binary.next()).code, 'ACCESS_REQUIRED');
-  assert.equal(calls, 0); assert.equal(speech.streams.length, 0);
+test('providers stay idle until explicit start, then production works without a code',async t=>{
+ const speech=fakeSpeech(),f=fixture(t,{env:{...KEYS,VERCEL:'1'},speechFactory:speech.factory});
+ const ws=f.connect();await tick();assert.equal(speech.streams.length,0);
+ ws.input({type:'start',language:'en',sampleRate:16000});assert.equal((await ws.next()).type,'ready');assert.equal(speech.streams.length,1);
+ const binary=f.connect();binary.audio(Buffer.alloc(4));assert.equal((await binary.next()).code,'ACCESS_REQUIRED');
 });
 
-test('production without an access code rejects providers even when both API keys exist', async t => {
-  const speech = fakeSpeech(); let calls = 0;
-  const f = fixture(t, { env: { ...KEYS, VERCEL: '1' }, speechFactory: speech.factory, interpreter: () => { calls++; } });
-  const ws = f.connect(); ws.input({ type: 'start', language: 'en', sampleRate: 16000, accessCode: 'anything' });
-  assert.equal((await ws.next()).code, 'ACCESS_NOT_CONFIGURED'); assert.equal(ws.closed.code, 1008); assert.equal(calls, 0); assert.equal(speech.streams.length, 0);
-});
-
-test('valid access code unlocks audio and is not included in any response', async t => {
+test('legacy client credentials are ignored and never included in responses', async t => {
   const speech = fakeSpeech(), f = fixture(t, { env: REMOTE, speechFactory: speech.factory });
   const ws = f.connect(); ws.input({ type: 'start', language: 'auto', sampleRate: 16000, accessCode: REMOTE.BABEL_SPEECH_ACCESS_CODE });
   assert.equal((await ws.next()).type, 'ready');
@@ -132,11 +120,9 @@ test('valid access code unlocks audio and is not included in any response', asyn
   for (const item of [...ws.messages, partial, final]) assert.equal(JSON.stringify(item).includes(REMOTE.BABEL_SPEECH_ACCESS_CODE), false);
 });
 
-test('local configured access code is required, while an unset local code is optional', async t => {
-  const guarded = fixture(t, { env: { ...KEYS, BABEL_SPEECH_ACCESS_CODE: 'local-code' } });
-  const denied = guarded.connect(); denied.input({ type: 'interpret', language: 'en', text: 'Hello' }); assert.equal((await denied.next()).code, 'ACCESS_REQUIRED');
-  const local = fixture(t), ws = local.connect(); ws.input({ type: 'interpret', language: 'en', text: 'Hello' });
-  assert.equal((await ws.next(item => item.type === 'meaning')).stage, 'final');
+test('a legacy environment access code does not block the new no-code experience',async t=>{
+ const f=fixture(t,{env:REMOTE});const ws=f.connect();ws.input({type:'interpret',language:'en',text:'Hello'});
+ assert.equal((await ws.next(item=>item.type==='meaning')).stage,'final');
 });
 
 test('first message expires after 10 seconds without opening providers', t => {

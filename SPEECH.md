@@ -1,6 +1,6 @@
 # Four-language speech integration
 
-The optional speech panel is part of the existing Babel page. Each participant uses their own device microphone. The existing camera artwork, facial-action statistics, fingertip animation and final artwork retain their current inputs.
+Speech starts with the main Babel entry button. Each participant uses their own device microphone. The existing camera artwork, facial-action statistics, fingertip animation and final artwork retain their current inputs.
 
 ## Enable locally
 
@@ -13,7 +13,7 @@ npm run build
 npm start
 ```
 
-Open http://127.0.0.1:4173 and select Chinese, English, Japanese or Spanish on the start screen. Your choice is both the microphone language and your preferred language for incoming translations. After entering the camera, open “实时字幕 · 麦克风设置”. Starting the camera does not start the microphone. Speech requires an explicit microphone button click and browser permission.
+Open http://127.0.0.1:4173 and select Chinese, English, Japanese or Spanish on the start screen. Your choice is both the microphone language and your preferred language for incoming translations. Clicking Start requests camera and microphone permissions. The current utterance grows word by word in one bottom text area, with bold type shrinking to fit. The toolbar offers microphone stop/retry. Refusing microphone permission leaves the camera available.
 
 ## Enable on Vercel
 
@@ -23,10 +23,9 @@ Add these environment variables to the Vercel project, selecting the deployment 
 | --- | --- |
 | `DEEPGRAM_API_KEY` | Streaming Nova-3 transcription |
 | `OPENAI_API_KEY` | Text semantic interpretation |
-| `BABEL_SPEECH_ACCESS_CODE` | Private demo passphrase entered by each participant |
 | `SEMANTIC_MODEL` | Optional; defaults to `gpt-4.1-mini` |
 
-Use a long, unguessable demo passphrase. Provider keys remain server-side. The participant's demo code remains in page memory and travels over the same-origin secure WebSocket; it is not stored in a URL or localStorage. Setting keys without an access code does not enable paid speech on Vercel. Missing configuration leaves the camera experience available and the speech panel unavailable.
+No participant access code is required. Existing `BABEL_SPEECH_ACCESS_CODE` values are ignored. Provider keys remain server-side. Same-origin validation, bounded messages, session duration and per-instance concurrency limits remain enabled.
 
 For an OpenAI-compatible provider, configure `SEMANTIC_API_KEY`, `SEMANTIC_BASE_URL` and `SEMANTIC_MODEL`. The endpoint must support Chat Completions with JSON object output, `temperature` and `max_tokens`. Use HTTPS for external endpoints.
 
@@ -34,15 +33,15 @@ The deployment uses Vercel Fluid Compute with a Node HTTP server exported from `
 
 ## Two-person rooms
 
-Use the existing invitation flow. Each device recognizes its own microphone. The local original transcript appears at the bottom of the local pane. Provisional and final translations, together with their source text, are sent through the existing data channel and displayed below the counterpart’s pane. Each sender translates into the receiving participant’s selected language, synchronized in the bounded visual-state snapshot. The receiving side assigns A/B from the established room role. Partial translations are explicitly marked provisional and are replaced by the final sentence, including when the revision number is unchanged. Older turns cannot replace a newer visible turn. Speech is opt-in; the panel explains external API processing and peer sharing before activation.
+Use the existing invitation flow. Each device recognizes its own microphone. The local original transcript appears at the bottom of the local pane. Provisional and final translations, together with their source text, are sent through the existing data channel and displayed below the counterpart’s pane. Each sender translates into the receiving participant’s selected language, synchronized in the bounded visual-state snapshot. The receiving side assigns A/B from the established room role. Partial translations are explicitly marked provisional and are replaced by the final sentence, including when the revision number is unchanged. Older turns cannot replace a newer visible turn. The start screen explains microphone permission, external processing and peer sharing before entry.
 
 The code identifies a device/room role, not a biometric speaker. It does not separate two voices on one microphone. Use one participant per device, avoid having the other speaker audible through the same microphone, and use the existing external call/physical conversation for hearing each other. The artwork's WebRTC media stream still contains video only.
 
-Stopping speech, leaving/replacing a connection, exiting the camera experience or detecting a local participant change clears speech state and cancels pending work. A second remote participant is expected in a duet; multiple people visible to the same local camera remain an attribution problem. Changing the remote language cancels pending translations without reopening the microphone. No semantic result changes the current particle, facial-action or final-art rendering in this integration.
+Stopping speech or exiting the camera experience clears speech state and cancels pending work. Changing rooms clears displayed captions; face-tracking loss or ownership changes do not stop the microphone. A second remote participant is expected in a duet; audio is always attributed to the local device, not to a tracked face. Changing the remote language cancels pending translations without reopening the microphone. No semantic result changes the current particle, facial-action or final-art rendering in this integration.
 
 ## Data and implementation
 
-- Browser: `public/speech/semantic-plugin.js`, PCM AudioWorklet and isolated panel in `public/speech/`.
+- Browser: `public/speech/semantic-plugin.js`, PCM AudioWorklet and responsive caption typography in `public/speech/`.
 - Provider pipeline: `lib/speech/gateway.mjs`, `deepgram.mjs`, `semantics.mjs`, `languages.mjs`.
 - Hosting: `/api/semantic-config` returns availability flags; `/api/semantic-stream` is the same-origin WebSocket. The localhost server mounts those routes too.
 - Peers: `public/meaning-protocol.js` validates partial/final messages, translation language/size and reset messages before the existing room data channel handles them.
@@ -51,7 +50,7 @@ Stopping speech, leaving/replacing a connection, exiting the camera experience o
 - Audio goes to Deepgram; transcript and recent textual context go to the configured semantic provider. The app does not write recordings or transcript logs. Current text is held in page/server memory and provisional and confirmed text is shared with the connected participant.
 - `latencyMs` measures semantic queue/inference time only. It excludes audio capture and transcription and is not end-to-end latency.
 
-The gateway has bounded input, queues, connection duration and per-instance concurrency. These are not an account-wide spending quota. A public production release should add per-user authentication and centralized quotas; this access-code gate is for a controlled hackathon demonstration. Model meaning, transcription accuracy and latency still require real four-language audio evaluation.
+The gateway has bounded input, queues, connection duration and per-instance concurrency. These are not an account-wide spending quota. A public production release should add per-user authentication and centralized quotas; the current no-code entry is intended for the hackathon demonstration. Model meaning, transcription accuracy and latency still require real four-language audio evaluation.
 
 ## References
 
