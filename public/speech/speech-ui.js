@@ -63,7 +63,7 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
   plugin.stop();clearLocal();if(clearPeer)clearRemote();
   if(wasActive&&notify&&connection.status==='connected')shareReset(operation);
   if(wasActive)emit('between-us:meaning-reset',{reason:'session-stopped'});
-  if(message)$('caption-state').textContent=message;controls();
+  $('caption-state').textContent=message;controls();
  }
  async function start(){
   if(destroyed||config?.enabled===false||active||connecting)return;
@@ -76,9 +76,9 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
    await plugin.start();
    if(token!==operation||destroyed||!active)return;
    connecting=false;$('caption-state').textContent='正在聆听 · 字幕与译文会随原话修正';controls();
-  }catch(error){if(token===operation&&!destroyed)stopped(error.name==='NotAllowedError'?'麦克风未获授权 · 允许权限后点「开启麦克风」重试':error.message||'语音服务无法启动。');}
+  }catch(error){if(token===operation&&!destroyed)stopped(error.name==='NotAllowedError'?'麦克风未获授权 · 允许权限后点「Unmute」重试':error.message||'语音服务无法启动。');}
  }
- $('start').onclick=start;$('stop').onclick=()=>stopped();
+ $('start').onclick=start;$('stop').onclick=()=>stopped('');
  on('transcript',({detail})=>{
   if(!currentSource())return;
   if(!turnOrders.has(detail.utteranceId)){turnOrders.set(detail.utteranceId,++nextTurnOrder);if(turnOrders.size>128)turnOrders.delete(turnOrders.keys().next().value);}
@@ -116,7 +116,7 @@ export function mountSpeechUI({getDiagnostics,sendMeaning=()=>false,plugin=creat
  });
  on('error',({detail})=>{
   if(destroyed||!active)return;
-  const message=detail.code==='NotAllowedError'?'麦克风未获授权 · 允许权限后点「开启麦克风」重试':detail.code==='NotFoundError'?'未找到麦克风 · 连接设备后重试':detail.message;
+  const message=detail.code==='NotAllowedError'?'麦克风未获授权 · 允许权限后点「Unmute」重试':detail.code==='NotFoundError'?'未找到麦克风 · 连接设备后重试':detail.message;
   if(detail.fatal)stopped(message||'语音连接已结束。');else $('caption-state').textContent=message||'本句暂时无法理解。';
  });
  on('status',({detail})=>{if(!destroyed&&detail.state==='stopped'&&(active||connecting))stopped();});

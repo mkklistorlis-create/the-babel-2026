@@ -147,3 +147,12 @@ test('an unseen delayed final cannot replace a newer translated turn; source ord
  h.ui.receiveMeaning(value);h.ui.receiveMeaning({...value,utteranceId:'never-seen-old',turnOrder:1,stage:'final',translation:'旧句'});
  assert.equal(h.get('remote-meaning').textContent,'现在');h.ui.destroy();
 });
+
+test('Mute clears captions without a status prompt and Unmute restarts speech',async()=>{
+ const h=harness();await tick();await h.start();transcript(h,'mute-turn','A caption');
+ h.get('stop').onclick();
+ assert.equal(h.ui.diagnostics.active,false);assert.equal(h.get('source').textContent,'');
+ assert.equal(h.get('caption-state').textContent,'');assert.equal(h.get('start').hidden,false);
+ await h.start();assert.equal(h.ui.diagnostics.active,true);assert.equal(h.get('stop').hidden,false);
+ h.ui.destroy();
+});

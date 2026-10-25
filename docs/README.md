@@ -15,6 +15,7 @@
 
 ## Verification
 
+- [Live toolbar redesign](verification/live-toolbar.md)
 - [Homepage redesign](verification/homepage-redesign.md)
 
 - [Integrated release and final manual checks](verification/release-r123.md)

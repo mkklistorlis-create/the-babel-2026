@@ -7,9 +7,10 @@ import {mountSessionResults} from './session-results.js';
 import {mountSpeechUI} from './speech/speech-ui.js';
 
 const $=id=>document.getElementById(id);
+const paused=false;
 const occupancyNames={single:'单人已确认',multiple:'检测到多人',empty:'未检测到人',uncertain:'正在确认单人'};
 const expressions=createExpressionTracker();
-let renderer,roomUI,speechUI,sessionController,sessionResults,sessionTimer,mode='idle',generation=0,paused=false,frame=0,cameraReady=false;
+let renderer,roomUI,speechUI,sessionController,sessionResults,sessionTimer,mode='idle',generation=0,frame=0,cameraReady=false;
 let people=[],occupancy='empty',ownershipEpoch=0,observedPeopleCount=0;
 let lastTracking=0,lastObserved=0,latency=0,faceCount=0,poseCount=0,trackingHealthy=false;
 let backgroundReady=false,backgroundWarning='',trackingWarnings=[],sourceStatuses={};
@@ -76,25 +77,25 @@ const tracker=createTracker({video:$('camera'),onStatus:status,onFrame(data){
 }});
 function showControls(){document.body.classList.add('controls-visible');clearTimeout(controlsTimer);controlsTimer=setTimeout(()=>document.body.classList.remove('controls-visible'),2200);}
 function enter(next){
- generation++;mode=next;paused=false;cameraReady=false;people=[];occupancy='empty';trackingHealthy=false;
+ generation++;mode=next;cameraReady=false;people=[];occupancy='empty';trackingHealthy=false;
  lastTracking=0;lastObserved=0;latency=0;faceCount=0;poseCount=0;observedPeopleCount=0;
  backgroundReady=false;backgroundWarning='';trackingWarnings=[];sourceStatuses={};expressions.reset();
  expression={visible:false,emoji:'',label:'等待面部'};
  renderer?.setState({mode:next,matchedFrame:null,foregroundMask:null,people:[],count:0,expression,interactionsEnabled:false,gestureEnabled:false,gestureOwner:gestureOwner(),ownershipEpoch:`${generation}:0`});
  $('intro').hidden=true;$('transport').hidden=false;$('mode-tag').hidden=next!=='demo';
- $('demo-settings').hidden=next!=='demo';$('pause').textContent='暂停粒子';$('stage').focus();showControls();return generation;
+ $('demo-settings').hidden=next!=='demo';$('stage').focus();showControls();return generation;
 }
 async function start(){
  if(!renderer||mode!=='idle')return mode==='live'&&cameraReady;
  const token=enter('live');void speechUI?.start?.();notice('正在启动摄像头与视觉追踪…',true);
  try{await tracker.start();if(token!==generation)return false;cameraReady=true;sessionController?.setSource?.({active:true,mode:'live'});notice('把双手伸入画面试着划线，再试试微笑、张嘴或转头。');return true;}
- catch(error){if(token!==generation)return false;cameraReady=false;speechUI?.stop('摄像头未启动，麦克风已关闭。');notice(`摄像头无法启动：${error.message||'请检查授权或模型加载'}。Esc 返回，可选择演示。`,true);$('debug').hidden=false;return false;}
+ catch(error){if(token!==generation)return false;cameraReady=false;speechUI?.stop('摄像头未启动，麦克风已关闭。');notice(`摄像头无法启动：${error.message||'请检查授权或模型加载'}。Esc 返回后重试。`,true);$('debug').hidden=false;return false;}
 }
 function stop(){
  speechUI?.stop();
  sessionController?.setSource?.({active:false,mode});
  roomUI?.leave();roomUI?.closePanel();
- generation++;mode='idle';paused=false;cameraReady=false;trackingHealthy=false;occupancy='empty';
+ generation++;mode='idle';cameraReady=false;trackingHealthy=false;occupancy='empty';
  tracker.stop();expressions.reset();people=[];expression={visible:false,emoji:'',label:'等待面部'};
  renderer?.setState({mode:'idle',matchedFrame:null,foregroundMask:null,people:[],count:0,expression,interactionsEnabled:false,gestureEnabled:false,gestureOwner:gestureOwner(),ownershipEpoch:`${generation}:0`});
  $('intro').hidden=false;$('transport').hidden=true;$('debug').hidden=true;$('mode-tag').hidden=true;notice('');$('start').focus();
@@ -102,9 +103,6 @@ function stop(){
 $('start').onclick=start;
 function startDemo(){if(!renderer||mode!=='idle')return mode==='demo';enter('demo');expression=expressionForDemo(selected);sessionController?.setSource?.({active:true,mode:'demo'});notice('动态演示：双手划线、粒子和头部贴饰均为模拟。点击画面切换表情。');return true;}
 $('exit').onclick=stop;
-function pause(){if(mode==='idle')return;paused=!paused;sessionController?.tick();$('pause').textContent=paused?'继续粒子':'暂停粒子';}
-$('pause').onclick=pause;
-$('debug-toggle').onclick=()=>$('debug').hidden=!$('debug').hidden;
 $('debug-close').onclick=()=>$('debug').hidden=true;
 function selectDemoExpression(id){
  selected=id;
@@ -127,7 +125,6 @@ window.addEventListener('keydown',e=>{
  if(e.key==='Escape'){if(roomUI?.panelOpen)roomUI.closePanel();else if(!$('debug').hidden)$('debug').hidden=true;else if(mode!=='idle')stop();return;}
  if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||mode==='idle')return;
  if(e.key.toLowerCase()==='d')$('debug').hidden=!$('debug').hidden;
- if(e.code==='Space'){e.preventDefault();pause();}
 });
 window.addEventListener('pagehide',()=>{speechUI?.destroy();roomUI?.destroy();sessionController?.destroy();sessionResults?.destroy();clearInterval(sessionTimer);tracker.stop();renderer?.destroy();cancelAnimationFrame(frame);clearTimeout(statusTimer);clearTimeout(controlsTimer);});
 function animate(now){

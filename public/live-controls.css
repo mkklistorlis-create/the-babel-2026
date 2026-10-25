@@ -1,0 +1,24 @@
+/* Compact live toolbar. Captions remain in the separate transparent row above. */
+:root{--ui-bottom:24px}
+#control-deck{display:flex;flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:0;width:min(100%,1000px);max-width:100%;padding:18px 20px;background:#f5f4ec;border:1px solid #171715;box-shadow:none;color:#171715;font-family:'Babel Inter',Arial,sans-serif}
+#control-deck #session-controls{position:static;transform:none;width:auto;max-width:none;display:block;flex:0 0 auto;margin:0;padding:0 30px 0 16px;border:0;border-right:1px solid #17171555;background:none;box-shadow:none}
+#control-deck .session-recording{display:flex;align-items:center;gap:16px;white-space:nowrap}
+.recording-dot{width:12px;height:12px;background:currentColor;border-radius:50%;flex:none}
+#session-controls[data-phase=starting] .recording-dot,#session-controls[data-phase=idle] .recording-dot{background:transparent;border:2px solid currentColor}
+#session-controls[data-phase=complete] .recording-dot,#session-controls[data-phase=finishing] .recording-dot{border-radius:0}
+#control-deck #session-live-label{font-size:18px;font-weight:700;letter-spacing:0}
+#control-deck #session-live-clock{font-size:38px;font-weight:400;font-variant-numeric:tabular-nums;line-height:1.2;margin-left:16px}
+#control-deck #transport{display:flex;flex:1;align-items:center;justify-content:space-evenly;gap:12px;border:0;padding:0 20px;flex-wrap:nowrap;background:transparent;opacity:1}
+#control-deck #transport button{display:inline-flex;align-items:center;justify-content:center;gap:14px;border:0;background:transparent;min-height:52px;padding:8px 12px;font-size:22px;line-height:1.2;white-space:nowrap;color:inherit}
+#control-deck #transport button:hover{background:#e8e7df}
+#control-deck svg{width:24px;height:29px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#control-deck .mic-slash{stroke-width:2.2;paint-order:stroke}
+#control-deck .session-control-actions{display:flex;flex:0 0 auto;gap:0}
+#control-deck #session-finish{min-height:76px;padding:18px 34px;border:1px solid #171715;background:#e5ff4a;font-family:inherit;font-size:22px;line-height:1.2;font-weight:700;white-space:nowrap;border-radius:0}
+#control-deck #session-finish:hover:not(:disabled){background:#d7f538}
+#control-deck button:focus-visible{outline:3px solid #171715;outline-offset:3px}
+#control-deck button:disabled{opacity:.45;cursor:default}
+@media(max-width:1000px){#control-deck{width:min(100%,850px);padding:14px 16px}#control-deck #session-controls{padding:0 20px 0 8px}#control-deck .session-recording{gap:12px}#control-deck #session-live-clock{font-size:30px;margin-left:8px}#control-deck #session-live-label{font-size:15px}#control-deck #transport{padding:0 12px;gap:4px}#control-deck #transport button{font-size:18px;padding:8px;gap:9px}#control-deck #session-finish{font-size:18px;padding:18px 22px;min-height:64px}}
+@media(max-width:700px){#control-deck{padding:10px 12px;flex-wrap:wrap;row-gap:10px}#control-deck #session-controls{padding:0 14px 0 0}#control-deck #session-live-clock{font-size:27px}#control-deck #transport{padding:0 0 0 10px;justify-content:space-around}#control-deck #transport button{font-size:16px;min-height:44px;gap:8px;padding:6px}#control-deck .session-control-actions{width:100%}#control-deck #session-finish{width:100%;min-height:50px;padding:13px 16px;font-size:17px}.recording-dot{width:9px;height:9px}#control-deck #session-live-label{font-size:13px}#control-deck .session-recording{gap:8px}#control-deck svg{width:20px;height:25px}}
+@media(max-width:360px){#control-deck{padding:9px}#control-deck #session-controls{padding-right:8px}#control-deck #session-live-clock{font-size:23px;margin-left:4px}#control-deck #transport{padding-left:6px}#control-deck #transport button{font-size:14px;gap:5px}}
+@media(max-height:540px) and (min-width:701px){#control-deck{padding:10px 14px}#control-deck #session-finish{min-height:50px;padding:12px 20px}#control-deck #session-live-clock{font-size:28px}}
