@@ -1,4 +1,8 @@
-# The Babel — R12.2 radial bloom
+# The Babel — R12.3 optional four-language speech
+
+R12.3 adds an opt-in Chinese / English / Japanese / Spanish speech panel to the existing page. Each device streams its own microphone to Deepgram and receives structured meaning from the configured text model. In a connected duet, confirmed original text and meaning are shared with the peer under its A/B role. Provisional meanings stay local. Camera input still starts independently; the R12.2 artwork and statistics remain unchanged.
+
+See [SPEECH.md](SPEECH.md) for setup, Vercel environment variables, the private demo access code, session limits and data handling. Without speech configuration, the camera experience remains available. API keys are never included in the frontend or repository.
 
 R12.2 replaces rectangular background strips with pointed petals radiating from the participant. Five palettes share a continuous composition, with slower color/shape transitions and smoothed motion. Camera cutouts remain transparent. The 6/7 gesture now tolerates a brief single-hand miss during the first crossing and fingertips beyond the camera edge; held digits stay inside the viewport. Final solo/duet artwork and statistics are unchanged. See [BACKDROP-VISUALS.md](BACKDROP-VISUALS.md) for implementation and validation.
 
@@ -41,7 +45,7 @@ R07 follows the revised camera-only direction. One participant uses one camera. 
 
 ## Run
 
-Node.js 24+ and a WebGL2-capable desktop browser are required. After cloning, run the build once to download and verify the pinned vision models, Three.js and WASM assets. These assets are then served locally. The current app requires no API key or language-model server.
+Node.js 24+ and a WebGL2-capable desktop browser are required. After cloning, run the build once to download and verify the pinned vision models, Three.js and WASM assets. These assets are then served locally. The camera experience requires no API key. Optional speech requires the server-side configuration in [SPEECH.md](SPEECH.md).
 
 ```sh
 # Run from the project directory after cloning or extracting.
@@ -49,7 +53,7 @@ npm run build
 npm start
 ```
 
-Open http://127.0.0.1:4173 and refresh an existing tab. Click **开始** and grant camera access. The app does not request microphone access; the server prohibits it through Permissions-Policy. Camera frames remain in the browser.
+Open http://127.0.0.1:4173 and refresh an existing tab. Click **开始** and grant camera access. Camera startup does not request microphone access. The separate speech panel requests it only when you explicitly start speech. Camera frames remain in the browser until you join a room.
 
 - Move either hand: the index fingertip draws its own fading cobalt trail: fine/dashed/hatching strands for one hand and a blue/ivory ribbon for the other.
 - Exchange the hands' vertical order once: 6 appears above the initial screen-left hand and 7 above the other. They keep following at rest. End by moving both hands out of view for about one second or making two fists for two fresh observations (at least 200ms). A single missing hand hides only its numeral. Open your hands and exchange heights again to restart.
@@ -83,12 +87,12 @@ See `verification-r076.md` for current verification; earlier reports are histori
 
 ## Files
 
-- `public/app.js`, `index.html`, `styles.css`: camera-only flow and diagnostic panel.
+- `public/app.js`, `index.html`, `styles.css`: camera flow, opt-in speech entry and diagnostic panel.
 - `public/expressions.js`: facial-action emoji vocabulary and temporal selection.
 - `public/tracking-worker.js`, `tracking.js`, `tracking-math.js`, `mask-stability.js`: vision, tracking identities and filters.
 - `public/duet-canvas.js`, `particle-motion.js`, `hand-trails.js`: original Three.js composition, square-particle physics and input strokes. `fingertip-ink.js` and `cobalt-geometry.js` style only those fingertip strokes.
 - `public/six-seven-gesture.js`, `six-seven-overlay.js`, `hand-pose.js`: one-swap persistent hand accessory, geometric fist cue and two cached numeral textures rendered above the measured hands.
-- `prototype-server.mjs`: localhost static server; old transcription and semantic endpoints return 410.
+- `prototype-server.mjs`: localhost static server with the opt-in semantic WebSocket; legacy transcription/interpret endpoints return 410.
 - `public/vendor/`: bundled vision assets, Three.js, model checksums and licenses.
 - `legacy/r06/`: dormant previous speech/semantic experiment; not served by the current application.
 

@@ -15,7 +15,7 @@ export function parseRoomInvitation(value){
 const statusNames={idle:'尚未连接',connecting:'正在连接房间服务…',waiting:'房间已创建，等待另一位加入',joining:'正在连接对方画面…',connected:'双人画面已连接',disconnected:'对方已断开，可以重新加入',error:'连接未成功'};
 
 /** Room controls are opt-in; constructing this object never opens media or a network connection. */
-export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnectionState=()=>{},onSession=()=>{}}){
+export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnectionState=()=>{},onSession=()=>{},onMeaning=()=>{}}){
  const $=id=>document.getElementById(id);
  let connection=null,capture=null,snapshotTimer=null,metricTimer=null,attempt=0,busy=false,remoteData=null,remoteReady=false;
  let state={status:'idle',role:null,roomId:null},lastAction=null,config=null,layoutRole=null;
@@ -73,8 +73,9 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
  }
  function leave(){
   attempt++;busy=false;
-  const old=connection;connection=null;
+  const old=connection,oldRole=state.role;connection=null;
   old?.leave();releaseCapture();clearRemote();
+  if(['A','B'].includes(oldRole))onMeaning({type:'reset',speakerId:oldRole==='A'?'B':'A'});
   state={status:'idle',role:null,roomId:null};setLayout(null);render();updateMetrics();
  }
  async function loadConfig(){
@@ -120,7 +121,8 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
      video.play().catch(()=>{$('remote-resume').hidden=false;});
     },
     onData:data=>{if(token!==attempt)return;remoteData=data;render();},
-    onSession:message=>{if(token===attempt)onSession(message);}
+    onSession:message=>{if(token===attempt)onSession(message);},
+    onMeaning:message=>{if(token===attempt)onMeaning(message);}
    });
    connection=client;
    snapshotTimer=setInterval(()=>{if(token===attempt)client.sendState(getSnapshot());},100);
@@ -153,7 +155,7 @@ export function mountRoomUI({canvas,getMode,prepareSource,getSnapshot,onConnecti
  window.addEventListener('hashchange',readInvitation);readInvitation();
  metricTimer=setInterval(updateMetrics,1000);
  render();updateMetrics();
- return {leave,open,sendSession:message=>connection?.sendSession(message)||false,closePanel(){$('room-panel').hidden=true;},get panelOpen(){return !$('room-panel').hidden;},
+ return {leave,open,sendSession:message=>connection?.sendSession(message)||false,sendMeaning:message=>connection?.sendMeaning(message)||false,closePanel(){$('room-panel').hidden=true;},get panelOpen(){return !$('room-panel').hidden;},
   destroy(){leave();clearInterval(metricTimer);window.removeEventListener('hashchange',readInvitation);},
   get diagnostics(){return {...(connection?.diagnostics||state),capture:capture?.diagnostics||null,remoteReady,remoteState:remoteData,layoutRole};}
  };

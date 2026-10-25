@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f3f3eb">
- <title>Between Us · 身体与表情</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/session-results.css">
+ <title>Between Us · 身体与表情</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/session-results.css"><link rel="stylesheet" href="/speech/speech-ui.css">
 </head>
 <body>
  <canvas id="stage" aria-label="粒子马赛克人物、双手划线与头部 emoji 贴饰" tabindex="0"></canvas>
@@ -18,7 +18,7 @@
   <h1>你。<span>我。</span><br>我们之间。</h1>
   <p class="lead">挥挥手。笑一下。<br>让动作留下痕迹。</p>
   <div class="actions"><button id="start" class="primary">开始 ↗</button><button id="demo">先试试动态</button><button id="room-open-intro">双人联机</button></div>
-  <p id="consent" class="note">一台电脑，一个人。仅使用摄像头，画面在本机处理。<br>加入双人房间后，将向对方发送处理后的画面（含实景背景）及手部、表情数据。<br>双手划线 · 表情贴饰 · 粒子马赛克</p>
+  <p id="consent" class="note">一台电脑，一个人。摄像头画面在本机处理。语音功能需单独手动开启。<br>加入双人房间后，将向对方发送处理后的画面（含实景背景）及手部、表情数据。<br>双手划线 · 表情贴饰 · 粒子马赛克</p>
   <p id="boot-error" role="alert"></p>
  </section>
  <span id="mode-tag" hidden>动态演示 · 模拟画面</span>
@@ -47,6 +47,17 @@
   <p class="note">双手在镜头里，上下位置交换一次即可开启 6 / 7；停手后继续跟随。双手都移出画面约一秒，或同时握拳，即可结束。</p>
   <p class="note">D 测试面板 · 空格暂停粒子 · Esc 退出<br>多人出现时暂停个人追踪，确认单人后自动继续。<br>每台电脑仅追踪当前的一位参与者。</p>
  </aside>
+ <details id="speech-panel">
+  <summary>四语语义 · 中文 / EN / 日本語 / ES</summary>
+  <p id="speech-status" role="status">正在读取语音配置…</p>
+  <label for="speech-language">本机输入语言</label><select id="speech-language"><option value="auto">自动识别四语</option><option value="zh">中文</option><option value="en">English</option><option value="ja">日本語</option><option value="es">Español</option></select>
+  <div id="speech-code-row" hidden><label for="speech-code">语音访问码</label><input id="speech-code" type="password" autocomplete="off" maxlength="200" placeholder="由演示者提供"></div>
+  <button id="speech-start" disabled>开启麦克风</button><button id="speech-stop" disabled>停止语音</button>
+  <p class="speech-note">开启后，音频及原文将发送至配置的语音和语义服务。双人联机时，最终原文与中文含义会共享给对方。原始声音不通过房间传输。</p>
+  <p class="speech-note">每次最长约 4 分钟，可手动重新开启。语义表示说出的内容；暂定含义可能修正。</p>
+  <section><strong id="speech-local-label">我说的话</strong><p id="speech-source" class="speech-source"></p><p id="speech-meaning" class="speech-meaning"></p><p id="speech-meta" class="speech-note"></p></section>
+  <section id="speech-remote" hidden><strong>对方说的话</strong><p id="speech-remote-source" class="speech-source"></p><p id="speech-remote-meaning" class="speech-meaning"></p><p id="speech-remote-meta" class="speech-note"></p></section>
+ </details>
  <p id="status" role="status" hidden></p>
  <script src="/vendor/peerjs.min.js"></script><script type="module" src="/app.js"></script>
 </body>

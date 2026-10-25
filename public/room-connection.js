@@ -1,5 +1,6 @@
 import {ROOM_ID,ROOM_PROTOCOL,randomRoomId,normalizeSnapshot,readMessage} from './room-protocol.js';
 import {normalizeSessionMessage} from './session-protocol.js';
+import {normalizeMeaningMessage,meaningMessageFits} from './meaning-protocol.js';
 
 const noop=()=>{};
 const problem=(code,message)=>Object.assign(new Error(message),{code});
@@ -21,15 +22,30 @@ const errors={
  * PeerServer Cloud only brokers connections; TURN must be configured separately.
  */
 export class RoomConnection{
- constructor({PeerClass=globalThis.Peer,onState=noop,onStream=noop,onData=noop,onSession=noop,config={}}={}){
-  this.PeerClass=PeerClass;this.onState=onState;this.onStream=onStream;this.onData=onData;this.onSession=onSession;
+ constructor({PeerClass=globalThis.Peer,onState=noop,onStream=noop,onData=noop,onSession=noop,onMeaning=noop,config={}}={}){
+  this.PeerClass=PeerClass;this.onState=onState;this.onStream=onStream;this.onData=onData;this.onSession=onSession;this.onMeaning=onMeaning;
   this.config={openTimeoutMs:15000,joinTimeoutMs:20000,admissionTimeoutMs:8000,heartbeatIntervalMs:2000,peerTimeoutMs:12000,stateStaleMs:1500,...config};
   this.now=config.now||(()=>performance.now());this.epoch=0;this.timers=new Set();this.pending=new Map();
   this.state={status:'idle',role:null,roomId:null,remotePresent:false,mediaConnected:false,signalingConnected:false,error:null,errorCode:null};
   this.sequence=0;this.remoteSequence=-1;this.remoteState=null;this.remoteAt=0;this.lastSent=-Infinity;this.lastHeard=0;this.rttMs=null;
   this.peer=null;this.connection=null;this.media=null;this.stream=null;this.accepted=false;this.remoteStream=null;this.operation=null;
+  this._resetMeaningTransport();
  }
- get diagnostics(){return {...this.state,remoteState:this.remoteState,rttMs:this.rttMs,sentSequence:this.sequence,receivedSequence:this.remoteSequence,turnConfigured:Boolean(this.config.iceServers?.some(s=>[].concat(s.urls||[]).some(u=>/^turns?:/.test(u))))};}
+ get diagnostics(){return {...this.state,remoteState:this.remoteState,rttMs:this.rttMs,sentSequence:this.sequence,receivedSequence:this.remoteSequence,sentMeaningSequence:this.meaningSequence,receivedMeaningSequence:this.remoteMeaningSequence,turnConfigured:Boolean(this.config.iceServers?.some(s=>[].concat(s.urls||[]).some(u=>/^turns?:/.test(u))))};}
+ _resetMeaningTransport(){
+  this.meaningSequence=0;this.remoteMeaningSequence=-1;this.meaningSentAt=[];this.meaningReceivedAt=[];
+  this.sentMeaningRevisions=new Map();this.remoteMeaningRevisions=new Map();
+ }
+ _meaningRateAvailable(direction,now){
+  const key=direction==='send'?'meaningSentAt':'meaningReceivedAt';
+  this[key]=this[key].filter(at=>now-at<1000&&now>=at);
+  return this[key].length<10;
+ }
+ _rememberMeaning(map,body){
+  if(body.type!=='meaning')return;
+  map.delete(body.utteranceId);map.set(body.utteranceId,body.revision);
+  if(map.size>128)map.delete(map.keys().next().value);
+ }
  _emit(values={}){Object.assign(this.state,values);this.onState(this.diagnostics);}
  _later(callback,delay){const id=setTimeout(()=>{this.timers.delete(id);callback();},delay);id.unref?.();this.timers.add(id);return id;}
  _cancel(id){if(id){clearTimeout(id);this.timers.delete(id);}}
@@ -156,6 +172,17 @@ export class RoomConnection{
    if(message.type==='ping'){this._write(connection,{type:'pong',at:message.at});return;}
    if(message.type==='pong'){const elapsed=this.now()-message.at;if(elapsed>=0&&elapsed<60000)this.rttMs=Math.round(elapsed);return;}
    if(message.type==='session'&&this.state.mediaConnected){this.onSession(message.body);return;}
+   if(message.type==='meaning'&&this.state.mediaConnected){
+    if(message.seq<=this.remoteMeaningSequence)return;
+    this.remoteMeaningSequence=message.seq;
+    const now=this.now(),body=message.body;
+    if(!this._meaningRateAvailable('receive',now))return;
+    this.meaningReceivedAt.push(now);
+    if(body.type==='meaning'&&body.revision<=(this.remoteMeaningRevisions.get(body.utteranceId)??-1))return;
+    this._rememberMeaning(this.remoteMeaningRevisions,body);
+    // A/B identity is established by admission, never accepted from remote JSON.
+    this.onMeaning({...body,speakerId:this.state.role==='A'?'B':'A'});return;
+   }
    if(message.type==='state'&&message.seq>this.remoteSequence){
     this.remoteSequence=message.seq;this.remoteAt=this.now();
     this.remoteState={...message.body,sequence:message.seq,sourceAt:message.at,receivedAt:this.remoteAt};this.onData(this.remoteState);
@@ -215,11 +242,24 @@ export class RoomConnection{
   if((this.connection.dataChannel?.bufferedAmount||0)>65536||(this.connection.bufferSize||0)>8)return false;
   return this._write(this.connection,{type:'session',body});
  }
+ sendMeaning(payload){
+  if(!this.accepted||!this.connection?.open||!this.state.mediaConnected)return false;
+  const body=normalizeMeaningMessage(payload);if(!body)return false;
+  if(body.type==='meaning'&&body.revision<=(this.sentMeaningRevisions.get(body.utteranceId)??-1))return false;
+  const now=this.now();if(!this._meaningRateAvailable('send',now))return false;
+  if((this.connection.dataChannel?.bufferedAmount||0)>65536||(this.connection.bufferSize||0)>8)return false;
+  const message={v:ROOM_PROTOCOL,type:'meaning',seq:this.meaningSequence,body};
+  if(!meaningMessageFits(message)||!this._write(this.connection,message))return false;
+  this.meaningSequence++;this.meaningSentAt.push(now);this._rememberMeaning(this.sentMeaningRevisions,body);return true;
+ }
  _clearRemote(){
   this._cancel(this.joinTimer);this._cancel(this.mediaTimer);
-  const connection=this.connection,media=this.media;this.connection=null;this.media=null;this.accepted=false;
+  const connection=this.connection,media=this.media,hadRemote=Boolean(connection||this.accepted);
+  this.connection=null;this.media=null;this.accepted=false;
   this.remoteSequence=-1;this.remoteState=null;this.remoteStream=null;this.remoteAt=0;this.lastHeard=0;this.rttMs=null;
+  this._resetMeaningTransport();
   close(media);close(connection);this.onStream(null);this.onData(null);
+  if(hadRemote&&['A','B'].includes(this.state.role))this.onMeaning({type:'reset',speakerId:this.state.role==='A'?'B':'A'});
  }
  _dropRemote(error){
   this._clearRemote();

@@ -16,6 +16,7 @@ function appHarness({startError,recordSessions=false}={}){
  const globals={console,EXPRESSION_LIBRARY,createExpressionTracker,expressionForDemo,DuetCanvas:Canvas,mountRoomUI:options=>{roomOptions=options;return {leave(){lifecycle.push('room-leave');},closePanel(){},destroy(){lifecycle.push('room-destroy');},panelOpen:false,diagnostics:{status:'idle'}};},
   createSessionController:options=>{sessionOptions=options;sessionController=recordSessions?createRealSessionController({...options,send:()=>true,now:()=>now,randomId:()=> (++sessionIds).toString(16).padStart(32,'0')}):{get state(){return sessionState;},setConnection(s){sessionState={...sessionState,connection:s};},receive(s){sessionState={...sessionState,message:s};},start(){},finish(){},observe(){},tick(){},destroy(){}};return sessionController;},
   mountSessionResults:()=>({update(){},close(){},destroy(){},panelOpen:false}),
+  mountSpeechUI:()=>({stop(){},destroy(){},setConnection(){},receiveMeaning(){},diagnostics:{active:false}}),
   getDemoPeople:()=>[person],createTracker:callbacks=>{trackerCallbacks=callbacks;return {async start(){starts++;if(startError)throw new Error(startError);},stop(){stops++;lifecycle.push('tracker-stop');}};},
   document:{getElementById:id=>nodes.get(id)||null,body:{classList:{add(){},remove(){}}}},window:{addEventListener(){}},Option:class{},innerWidth:1280,innerHeight:720,
   performance:{now:()=>now},Date,setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},requestAnimationFrame:callback=>{raf=callback;return 1;},cancelAnimationFrame(){},

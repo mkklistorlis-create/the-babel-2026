@@ -37,11 +37,11 @@ function peerClass({autoOpen=true,deliverCalls=true}={}){
 }
 async function paired(extra={}){
  const PeerClass=peerClass(),aStream=source(),bStream=source();let now=100;
- const receivedA=[],receivedB=[],streamsA=[],streamsB=[];
- const a=new RoomConnection({PeerClass,onData:d=>receivedA.push(d),onStream:s=>streamsA.push(s),config:{now:()=>now,...extra}});
- const b=new RoomConnection({PeerClass,onData:d=>receivedB.push(d),onStream:s=>streamsB.push(s),config:{now:()=>now,...extra}});
+ const receivedA=[],receivedB=[],streamsA=[],streamsB=[],meaningsA=[],meaningsB=[];
+ const a=new RoomConnection({PeerClass,onData:d=>receivedA.push(d),onStream:s=>streamsA.push(s),onMeaning:m=>meaningsA.push(m),config:{now:()=>now,...extra}});
+ const b=new RoomConnection({PeerClass,onData:d=>receivedB.push(d),onStream:s=>streamsB.push(s),onMeaning:m=>meaningsB.push(m),config:{now:()=>now,...extra}});
  const roomId=await a.host(aStream);await b.join(roomId,bStream);await flush();
- return {a,b,aStream,bStream,roomId,PeerClass,receivedA,receivedB,streamsA,streamsB,advance:t=>now=t,cleanup:()=>{a.leave();b.leave();}};
+ return {a,b,aStream,bStream,roomId,PeerClass,receivedA,receivedB,streamsA,streamsB,meaningsA,meaningsB,advance:t=>now=t,cleanup:()=>{a.leave();b.leave();}};
 }
 const snapshot=(extra={})=>({mode:'live',present:true,hands:[{id:'left',tip:{x:.2,y:.7},palm:{x:.2,y:.8}}],expression:{id:'smile',score:.8,actions:{smile:.8}},aspect:16/9,...extra});
 
@@ -160,4 +160,75 @@ test('session controls require admitted media and remain independent from thrott
   assert.equal(p.a.sendSession(body),true);await flush();assert.equal(received.length,1);
   p.b.state.mediaConnected=true;p.a.leave();assert.equal(p.a.sendSession(body),false);
  }finally{p.cleanup();}
+});
+
+const meaning=(extra={})=>({type:'meaning',stage:'final',utteranceId:'turn-1',revision:2,language:'en',text:'I like this design.',
+ meaning:'说话者喜欢这个设计。',intent:'evaluate',target:'this design',attributes:['喜欢'],degree:'moderate',
+ polarity:'positive',uncertain:false,evidence:['like this design'],latencyMs:400,...extra});
+
+test('final meanings cross the admitted peer channel with receiver-assigned speaker identity',async()=>{
+ const p=await paired();try{
+  assert.equal(p.a.sendMeaning(meaning({speakerId:'B',role:'B'})),true);
+  assert.equal(p.b.sendMeaning(meaning({speakerId:'A',role:'A'})),true);await flush();
+  assert.deepEqual(p.meaningsB,[{...meaning(),speakerId:'A'}]);assert.deepEqual(p.meaningsA,[{...meaning(),speakerId:'B'}]);
+  assert.equal(p.a.sendMeaning(meaning({stage:'partial'})),false);
+  assert.equal(p.a.sendMeaning(meaning({utteranceId:'bad-evidence',evidence:['not said']})),false);
+  assert.equal(p.a.sendMeaning({type:'reset'}),true);await flush();assert.deepEqual(p.meaningsB.at(-1),{type:'reset',speakerId:'A'});
+  assert.equal(p.a.diagnostics.sentMeaningSequence,2);assert.equal(p.b.diagnostics.receivedMeaningSequence,1);
+ }finally{p.cleanup();}
+});
+
+test('semantic sequence and per-turn revisions reject duplicate, reordered and reset-era replay',async()=>{
+ const p=await paired();try{
+  p.a.sendMeaning(meaning());await flush();assert.equal(p.meaningsB.length,1);
+  assert.equal(p.a.sendMeaning(meaning()),false);
+  const packet=p.a.connection.sent.find(message=>message.type==='meaning');
+  p.b.connection.emit('data',packet);assert.equal(p.meaningsB.length,1);
+  p.b.connection.emit('data',{...packet,seq:1});assert.equal(p.meaningsB.length,1);
+  p.b.connection.emit('data',{...packet,seq:2,body:{type:'reset'}});assert.equal(p.meaningsB.length,2);
+  p.b.connection.emit('data',{...packet,seq:3});assert.equal(p.meaningsB.length,2);
+  p.b.connection.emit('data',{...packet,seq:4,body:meaning({revision:3})});assert.equal(p.meaningsB.length,3);
+  p.b.connection.emit('data',{...packet,seq:3,body:meaning({revision:4})});assert.equal(p.meaningsB.length,3);
+ }finally{p.cleanup();}
+});
+
+test('meaning throttles and backpressure are independent from visual and session traffic',async()=>{
+ const p=await paired();try{
+  for(let i=0;i<10;i++)assert.equal(p.a.sendMeaning(meaning({utteranceId:`turn-${i}`})),true);
+  assert.equal(p.a.sendMeaning(meaning({utteranceId:'limited'})),false);await flush();assert.equal(p.meaningsB.length,10);
+  assert.equal(p.a.sendState(snapshot()),true);
+  assert.equal(p.a.sendSession({action:'start',sessionId:'a'.repeat(32),role:'A'}),true);
+  p.advance(1100);assert.equal(p.a.sendMeaning({type:'reset'}),true);await flush();assert.equal(p.meaningsB.at(-1).type,'reset');
+  p.a.connection.dataChannel.bufferedAmount=70000;assert.equal(p.a.sendMeaning(meaning({utteranceId:'congested'})),false);
+  p.a.connection.dataChannel.bufferedAmount=0;p.a.connection.bufferSize=9;assert.equal(p.a.sendMeaning({type:'reset'}),false);
+ }finally{p.cleanup();}
+});
+
+test('receiver independently rate-limits semantic floods and ignores unadmitted or oversized data',async()=>{
+ const p=await paired();try{
+  p.b.state.mediaConnected=false;
+  p.b.connection.emit('data',{v:1,type:'meaning',seq:0,body:meaning()});assert.equal(p.meaningsB.length,0);
+  p.b.state.mediaConnected=true;
+  for(let i=0;i<15;i++)p.b.connection.emit('data',{v:1,type:'meaning',seq:i,body:meaning({utteranceId:`flood-${i}`})});
+  assert.equal(p.meaningsB.length,10);
+  assert.equal(p.b.diagnostics.receivedMeaningSequence,14);
+  p.advance(1200);p.b.connection.emit('data',{v:1,type:'meaning',seq:15,body:{type:'reset'}});assert.equal(p.meaningsB.length,11);
+  p.b.connection.emit('data',{v:1,type:'meaning',seq:16,body:meaning({text:'中'.repeat(2000),meaning:'意'.repeat(600),target:'对'.repeat(200),evidence:['中'],attributes:Array(12).fill('性'.repeat(80))})});
+  assert.equal(p.meaningsB.length,11);assert.equal(p.b.diagnostics.receivedMeaningSequence,15);
+ }finally{p.cleanup();}
+});
+
+test('disconnect clears meaning transport and stale connections cannot affect a replacement peer',async()=>{
+ const p=await paired();let c;try{
+  assert.equal(p.b.sendMeaning(meaning()),true);await flush();assert.equal(p.meaningsA.length,1);
+  const oldConnection=p.a.connection;p.b.leave();await flush();
+  assert.deepEqual(p.meaningsA.at(-1),{type:'reset',speakerId:'B'});
+  assert.equal(p.a.diagnostics.receivedMeaningSequence,-1);assert.equal(p.a.diagnostics.sentMeaningSequence,0);
+  c=new RoomConnection({PeerClass:p.PeerClass});await c.join(p.roomId,source());await flush();
+  const count=p.meaningsA.length;
+  oldConnection.emit('data',{v:1,type:'meaning',seq:100,body:meaning({utteranceId:'stale'})});assert.equal(p.meaningsA.length,count);
+  assert.equal(c.sendMeaning(meaning()),true);await flush();assert.equal(p.meaningsA.length,count+1);
+  assert.equal(p.meaningsA.at(-1).speakerId,'B');assert.equal(p.a.diagnostics.receivedMeaningSequence,0);
+  c.leave();assert.equal(c.sendMeaning(meaning()),false);
+ }finally{c?.leave();p.cleanup();}
 });

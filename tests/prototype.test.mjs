@@ -7,7 +7,7 @@ import {tmpdir} from 'node:os';
 import {createPrototypeServer} from '../prototype-server.mjs';
 
 async function serve(options={}) {
- const server=createPrototypeServer(options);
+ const server=createPrototypeServer({env:{},...options});
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  return {server,base:`http://127.0.0.1:${server.address().port}`,async close(){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}};
 }
@@ -19,16 +19,16 @@ function rawRequest(base,path,headers={}) {
  });
 }
 
-test('R07 serves camera assets, prohibits microphone and advertises only visual input',async()=>{
+test('camera assets allow opt-in microphone and report speech unavailable without keys',async()=>{
  const fixture=await serve();
  try {
   const response=await fetch(fixture.base+'/api/capabilities'),capabilities=await response.json();
-  assert.equal(capabilities.revision,'R07');assert.equal(capabilities.mode,'camera-only');
+  assert.equal(capabilities.revision,'R12.3');assert.equal(capabilities.mode,'camera-with-optional-speech');
   assert.equal(capabilities.camera,true);assert.equal(capabilities.hands,true);assert.equal(capabilities.facialExpressions,true);
   assert.equal(capabilities.microphone,false);assert.equal(capabilities.transcription,false);assert.equal(capabilities.semantics,false);assert.equal(capabilities.provider,null);
   for(const path of ['/','/app.js','/duet-canvas.js','/vendor/three.module.js','/tracking-worker.js','/vendor/mediapipe/vision_bundle.mjs','/vendor/mediapipe/hand_landmarker.task']){
    const result=await fetch(fixture.base+path);assert.equal(result.status,200,path);
-   assert.equal(result.headers.get('permissions-policy'),'camera=(self), microphone=()');
+   assert.equal(result.headers.get('permissions-policy'),'camera=(self), microphone=(self)');
    assert.ok((await result.arrayBuffer()).byteLength>50);
   }
   const head=await fetch(fixture.base+'/app.js',{method:'HEAD'});
@@ -45,7 +45,7 @@ test('suspended speech and semantic endpoints cannot instantiate or invoke old p
  try {
   for(const route of ['/api/transcribe?language=es','/api/interpret']){
    const result=await fetch(fixture.base+route,{method:'POST',headers:{'content-type':'application/json',origin:fixture.base},body:JSON.stringify({text:'a past version request',language:'es'})});
-   assert.equal(result.status,410);const body=await result.json();assert.equal(body.suspended,true);assert.equal(body.revision,'R07');assert.match(body.error,/camera input only/);
+   assert.equal(result.status,410);const body=await result.json();assert.equal(body.suspended,true);assert.equal(body.revision,'R12.3');assert.match(body.error,/Legacy speech endpoints/);
   }
   assert.equal((await fetch(fixture.base+'/api/interpret',{method:'POST',headers:{origin:'https://example.org'},body:'{}'})).status,403);
   assert.equal((await fetch(fixture.base+'/api/unknown')).status,404);
